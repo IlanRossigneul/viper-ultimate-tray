@@ -29,6 +29,8 @@ from ui.menu import create_menu
 
 from razer.mouse_state import get_mouse_state
 
+from razer.mouse_controller import MouseController
+
 import gi
 
 gi.require_version(
@@ -95,6 +97,8 @@ def main() -> int:
         viper,
     )
 
+    mouse_controller = MouseController()
+
     menu = widgets.menu
 
     name_item = widgets.name_item
@@ -112,25 +116,15 @@ def main() -> int:
     quit_action = widgets.quit_action
 
     def set_active_stage(stage_number: int) -> None:
-        if viper is None:
-            return
-
-        try:
-            _, stages = viper.dpi_stages
-
-            viper.dpi_stages = (
-                stage_number,
-                stages,
-            )
-
-            update_mouse_status()
-
-        except Exception as error:
+        if not mouse_controller.set_dpi_stage(
+            stage_number
+        ):
             print(
-                f"Failed to change the DPI stage: "
-                f"{error}",
+                "Failed to change the DPI stage.",
                 flush=True,
             )
+
+        update_mouse_status()
 
     def set_disconnected_state() -> None:
         indicator.set_icon_full(
