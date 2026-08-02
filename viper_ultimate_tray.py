@@ -9,20 +9,13 @@ from config.paths import (
     MODEL_FILE,
 )
 
-from battery.icons import (
-    get_battery_icon,
-    get_tray_icon,
-)
-
-from battery.estimation import (
-    get_charge_estimation,
-)
-
 from ui.menu import create_menu
 from ui.dpi_menu import create_dpi_stage_menu
 from ui.status_view import StatusView
+
 from razer.mouse_state import get_mouse_state
 from razer.mouse_controller import MouseController
+from razer.mouse_poller import MousePoller
 
 import gi
 
@@ -38,7 +31,6 @@ gi.require_version(
 
 from gi.repository import (
     Gtk,
-    GLib,
     AppIndicator3,
 )
 
@@ -129,8 +121,6 @@ def main() -> int:
                 flush=True,
             )
 
-        update_mouse_status()
-
     def handle_disconnection() -> None:
         nonlocal previous_connection_state
 
@@ -154,25 +144,9 @@ def main() -> int:
 
         previous_connection_state = True
 
-    def update_mouse_status() -> None:
-        try:
-            # Recreate the device manager intentionally to detect
-            # state changes between wireless and wired modes.
-            state = get_mouse_state()
-
-        except Exception:
-            handle_disconnection()
-            return
-
-        if not state.connected:
-            handle_disconnection()
-            return
-
+    def handle_connected(state):
         mark_as_connected()
-
-        status_view.show_connected(
-            state,
-        )
+        status_view.show_connected(state)
 
     stage_items.extend(
         create_dpi_stage_menu(
@@ -181,18 +155,14 @@ def main() -> int:
             set_active_stage,
         )
     )
-
-    update_mouse_status()
-
-    # Automatically refresh the mouse status
-    def refresh_mouse_status():
-        update_mouse_status()
-        return True
-
-    GLib.timeout_add(
-        2000,
-        refresh_mouse_status,
+    
+    poller = MousePoller(
+        on_connected=handle_connected,
+        on_disconnected=handle_disconnection,
     )
+
+    poller.poll()
+    poller.start()
 
     indicator.set_menu(
         menu
