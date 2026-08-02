@@ -11,6 +11,15 @@ from config.paths import (
     MODEL_FILE,
 )
 
+from battery.icons import (
+    get_battery_icon,
+    get_tray_icon,
+)
+
+from battery.estimation import (
+    get_charge_estimation,
+)
+
 import gi
 
 gi.require_version(
@@ -121,87 +130,6 @@ def main() -> int:
 
         menu.append(
             separator
-        )
-
-    def get_battery_icon(
-        battery: float,
-        is_charging: bool,
-    ) -> str:
-        if battery <= 10:
-            level = 0
-        elif battery <= 25:
-            level = 1
-        elif battery <= 50:
-            level = 2
-        elif battery <= 75:
-            level = 3
-        else:
-            level = 4
-
-        prefix = (
-            "battery-charging"
-            if is_charging
-            else "battery"
-        )
-
-        return f"{prefix}-{level}.svg"
-
-    def get_tray_icon(
-        battery: float,
-        is_charging: bool,
-    ) -> str:
-        battery_level = round(battery)
-
-        suffix = "_c" if is_charging else ""
-
-        return (
-            f"bat_{battery_level}"
-            f"{suffix}.png"
-        )
-
-    def get_charge_estimation(
-        battery: float,
-        charging_source: str,
-    ) -> str | None:
-        battery_level = int(battery)
-
-        source = charge_models.get(charging_source)
-
-        if source is None:
-            return None
-
-        charge_model = source.get("average", {})
-
-        remaining_seconds = charge_model.get(
-            str(battery_level)
-        )
-
-        if remaining_seconds is None:
-            return None
-
-        if remaining_seconds <= 3600:
-            minutes = round(
-                remaining_seconds / 60
-            )
-
-            return (
-                f"{minutes} min environ "
-                f"avant pleine recharge"
-            )
-
-        hours, remainder = divmod(
-            remaining_seconds,
-            3600,
-        )
-
-        minutes = round(
-            remainder / 60
-        )
-
-        return (
-            f"{hours} h "
-            f"{minutes:02d} min environ "
-            f"avant pleine recharge"
         )
 
     def get_charging_source(device) -> str:
@@ -530,8 +458,10 @@ def main() -> int:
             )
         )
 
-        charge_estimation = (
-            get_charge_estimation(battery, charging_source)
+        charge_estimation = get_charge_estimation(
+            battery,
+            charging_source,
+            charge_models,
         )
 
         battery_text = (
