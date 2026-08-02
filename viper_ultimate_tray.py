@@ -19,9 +19,8 @@ from battery.estimation import (
 )
 
 from ui.menu import create_menu
-
+from ui.dpi_menu import create_dpi_stage_menu
 from razer.mouse_state import get_mouse_state
-
 from razer.mouse_controller import MouseController
 
 import gi
@@ -327,34 +326,13 @@ def main() -> int:
             f"{low_battery_threshold} %"
         )
 
-    # Create DPI Stage Items
-    state = get_mouse_state()
-
-    stages = state.stages
-
-    stage_group = None
-
-    for index, stage in enumerate(
-        stages,
-        start=1,
-    ):
-        item = Gtk.RadioMenuItem.new_with_label(
-            stage_group,
-            f"{stage.x:>4}",
+    stage_items.extend(
+        create_dpi_stage_menu(
+            stage_menu,
+            state.stages,
+            set_active_stage,
         )
-
-        stage_group = item.get_group()
-
-        item.connect(
-            "toggled",
-            lambda item, stage=index:
-                set_active_stage(stage)
-                if item.get_active()
-                else None,
-        )
-
-        stage_menu.append(item)
-        stage_items.append(item)
+    )
 
     update_mouse_status()
 
