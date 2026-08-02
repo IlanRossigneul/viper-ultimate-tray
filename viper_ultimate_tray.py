@@ -3,6 +3,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+from config.paths import (
+    ICON_DIR,
+    MENU_ICON_DIR,
+    MENU_BATTERY_ICON_DIR,
+    TRAY_ICON_DIR,
+    MODEL_FILE,
+)
+
 import gi
 
 gi.require_version(
@@ -25,28 +33,15 @@ import openrazer.client
 
 
 def main() -> int:
-    icon_dir = Path(__file__).parent / "icons"
+    icon_dir = ICON_DIR
 
-    menu_icon_dir = (
-        icon_dir
-        / "menu"
-    )
+    menu_icon_dir = MENU_ICON_DIR
 
-    menu_battery_icon_dir = (
-        menu_icon_dir
-        / "battery"
-    )
+    menu_battery_icon_dir = MENU_BATTERY_ICON_DIR
 
-    tray_icon_dir = (
-        icon_dir
-        / "tray"
-    )
+    tray_icon_dir = TRAY_ICON_DIR
 
-    model_file = (
-        Path(__file__).parent
-        / "log"
-        / "battery_charge_model.json"
-    )
+    model_file = MODEL_FILE
 
     device_manager = (
         openrazer.client.DeviceManager()
