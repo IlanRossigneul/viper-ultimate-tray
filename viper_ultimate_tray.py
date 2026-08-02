@@ -23,10 +23,11 @@ from battery.estimation import (
 from razer.device import (
     create_device_manager,
     find_viper_ultimate_device,
-    get_charging_source,
 )
 
 from ui.menu import create_menu
+
+from razer.mouse_state import get_mouse_state
 
 import gi
 
@@ -189,7 +190,7 @@ def main() -> int:
             item.set_sensitive(False)
 
     def handle_disconnection() -> None:
-        nonlocal viper, mouse_connected
+        nonlocal mouse_connected
 
         if mouse_connected:
             print(
@@ -198,7 +199,6 @@ def main() -> int:
             )
 
         mouse_connected = False
-        viper = None
         set_disconnected_state()
 
     def mark_as_connected() -> None:
@@ -213,42 +213,27 @@ def main() -> int:
         mouse_connected = True
 
     def update_mouse_status() -> None:
-        nonlocal viper
-
         try:
             # Recreate the device manager intentionally to detect
             # state changes between wireless and wired modes.
-            current_device_manager = create_device_manager()
-
-            current_viper = find_viper_ultimate_device(
-                current_device_manager
-            )
+            state = get_mouse_state()
 
         except Exception:
             handle_disconnection()
             return
 
-        if current_viper is None:
+        if not state.connected:
             handle_disconnection()
             return
 
-        viper = current_viper
-
-        charging_source = get_charging_source(viper)
-
-        try:
-            battery = viper.battery_level
-            is_charging = viper.is_charging
-            dpi_x, _ = viper.dpi
-            active_stage, stages = viper.dpi_stages
-            idle_minutes = viper.get_idle_time() // 60
-            low_battery_threshold = (
-                viper.get_low_battery_threshold()
-            )
-
-        except Exception:
-            handle_disconnection()
-            return
+        battery = state.battery
+        is_charging = state.charging
+        dpi_x = state.dpi
+        active_stage = state.active_stage
+        stages = state.stages
+        idle_minutes = state.idle_minutes
+        low_battery_threshold = state.low_battery_threshold
+        charging_source = state.charging_source.value
 
         indicator.set_icon_full(
             str(
@@ -288,11 +273,11 @@ def main() -> int:
             )
 
         name_item.label_widget.set_text(
-            viper.name
+            state.device_name
         )
 
         indicator.set_title(
-            f"{viper.name} — {battery:.0f} %"
+            f"{state.device_name} — {battery:.0f} %"
         )
 
         mark_as_connected()
@@ -335,14 +320,14 @@ def main() -> int:
             f"{active_stage} / {len(stages)}"
         )
 
-        for index, (stage_dpi_x, _) in enumerate(
+        for index, stage in enumerate(
             stages,
             start=1,
         ):
             item = stage_items[index - 1]
 
             item.set_label(
-                f"{stage_dpi_x:>4}"
+                f"{stage.x:>4}"
             )
 
             item.set_active(
@@ -359,17 +344,19 @@ def main() -> int:
         )
 
     # Create DPI Stage Items
-    _, stages = viper.dpi_stages
+    state = get_mouse_state()
+
+    stages = state.stages
 
     stage_group = None
 
-    for index, (dpi_x, _) in enumerate(
+    for index, stage in enumerate(
         stages,
         start=1,
     ):
         item = Gtk.RadioMenuItem.new_with_label(
             stage_group,
-            f"{dpi_x:>4}",
+            f"{stage.x:>4}",
         )
 
         stage_group = item.get_group()
