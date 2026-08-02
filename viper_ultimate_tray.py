@@ -20,6 +20,12 @@ from battery.estimation import (
     get_charge_estimation,
 )
 
+from razer.device import (
+    create_device_manager,
+    find_viper_ultimate_device,
+    get_charging_source,
+)
+
 import gi
 
 gi.require_version(
@@ -52,9 +58,7 @@ def main() -> int:
 
     model_file = MODEL_FILE
 
-    device_manager = (
-        openrazer.client.DeviceManager()
-    )
+    device_manager = create_device_manager()
 
     with model_file.open(
         "r",
@@ -62,17 +66,6 @@ def main() -> int:
     ) as file:
         charge_models = json.load(file)["sources"]
 
-    def find_viper_ultimate_device(manager):
-        return next(
-            (
-                device
-                for device in manager.devices
-                if device.name.startswith(
-                    "Razer Viper Ultimate"
-                )
-            ),
-            None,
-        )
 
     def create_menu_item(
         icon_path: Path | None = None,
@@ -131,12 +124,6 @@ def main() -> int:
         menu.append(
             separator
         )
-
-    def get_charging_source(device) -> str:
-        if "(Wired)" in device._name:
-            return "wired"
-
-        return "wireless"
 
     viper = find_viper_ultimate_device(
         device_manager
@@ -367,9 +354,7 @@ def main() -> int:
         try:
             # Recreate the device manager intentionally to detect
             # state changes between wireless and wired modes.
-            current_device_manager = (
-                openrazer.client.DeviceManager()
-            )
+            current_device_manager = create_device_manager()
 
             current_viper = find_viper_ultimate_device(
                 current_device_manager
