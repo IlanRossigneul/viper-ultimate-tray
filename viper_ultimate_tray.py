@@ -20,6 +20,7 @@ from battery.estimation import (
 
 from ui.menu import create_menu
 from ui.dpi_menu import create_dpi_stage_menu
+from ui.status_view import StatusView
 from razer.mouse_state import get_mouse_state
 from razer.mouse_controller import MouseController
 
@@ -100,6 +101,21 @@ def main() -> int:
     stage_menu = widgets.stage_menu
     stage_items = widgets.stage_items
 
+    status_view = StatusView(
+        indicator=indicator,
+        icon_dir=icon_dir,
+        tray_icon_dir=tray_icon_dir,
+        menu_battery_icon_dir=menu_battery_icon_dir,
+        charge_models=charge_models,
+        name_item=name_item,
+        battery_item=battery_item,
+        dpi_item=dpi_item,
+        stage_item=stage_item,
+        idle_item=idle_item,
+        low_battery_item=low_battery_item,
+        stage_items=stage_items,
+    )
+
     polychromatic_action = widgets.polychromatic_action
     input_remapper_action = widgets.input_remapper_action
     quit_action = widgets.quit_action
@@ -115,63 +131,6 @@ def main() -> int:
 
         update_mouse_status()
 
-    def set_disconnected_state() -> None:
-        indicator.set_icon_full(
-            str(icon_dir / "mouse.svg"),
-            "Razer Viper Ultimate",
-        )
-
-        name_item.label_widget.set_text(
-            "Razer Viper Ultimate déconnectée"
-        )
-
-        battery_item.label_widget.set_text(
-            "Batterie : —"
-        )
-
-        dpi_item.label_widget.set_text(
-            "DPI : —"
-        )
-
-        stage_item.label_widget.set_text(
-            "Plage active : —"
-        )
-
-        idle_item.label_widget.set_text(
-            "Hibernation : —"
-        )
-
-        low_battery_item.label_widget.set_text(
-            "Basse consommation : —"
-        )
-
-        battery_item.set_sensitive(
-            False
-        )
-
-        dpi_item.set_sensitive(
-            False
-        )
-
-        stage_item.set_sensitive(
-            False
-        )
-
-        idle_item.set_sensitive(
-            False
-        )
-
-        low_battery_item.set_sensitive(
-            False
-        )
-
-        indicator.set_title(
-            "Razer Viper Ultimate déconnectée"
-        )
-
-        for item in stage_items:
-            item.set_sensitive(False)
-
     def handle_disconnection() -> None:
         nonlocal previous_connection_state
 
@@ -182,7 +141,7 @@ def main() -> int:
             )
 
         previous_connection_state = False
-        set_disconnected_state()
+        status_view.show_disconnected()
 
     def mark_as_connected() -> None:
         nonlocal previous_connection_state
@@ -209,121 +168,10 @@ def main() -> int:
             handle_disconnection()
             return
 
-        battery = state.battery
-        is_charging = state.charging
-        dpi_x = state.dpi
-        active_stage = state.active_stage
-        stages = state.stages
-        idle_minutes = state.idle_minutes
-        low_battery_threshold = state.low_battery_threshold
-        charging_source = state.charging_source.value
-
-        indicator.set_icon_full(
-            str(
-                tray_icon_dir
-                / get_tray_icon(
-                    battery,
-                    is_charging,
-                )
-            ),
-            f"Razer Viper Ultimate — "
-            f"{battery:.0f} %",
-        )
-
-        battery_item.set_sensitive(
-            True
-        )
-
-        dpi_item.set_sensitive(
-            True
-        )
-
-        stage_item.set_sensitive(
-            True
-        )
-
-        idle_item.set_sensitive(
-            True
-        )
-
-        low_battery_item.set_sensitive(
-            True
-        )
-
-        for item in stage_items:
-            item.set_sensitive(
-                True
-            )
-
-        name_item.label_widget.set_text(
-            state.device_name
-        )
-
-        indicator.set_title(
-            f"{state.device_name} — {battery:.0f} %"
-        )
-
         mark_as_connected()
 
-        battery_item.image_widget.set_from_file(
-            str(
-                menu_battery_icon_dir
-                / get_battery_icon(
-                    battery,
-                    is_charging,
-                )
-            )
-        )
-
-        charge_estimation = get_charge_estimation(
-            battery,
-            charging_source,
-            charge_models,
-        )
-
-        battery_text = (
-            f"Batterie : {battery:.0f} %"
-        )
-
-        if is_charging and charge_estimation:
-            battery_text += (
-                f" ({charge_estimation})"
-            )
-
-        battery_item.label_widget.set_text(
-            battery_text
-        )
-
-        dpi_item.label_widget.set_text(
-            f"DPI : {dpi_x}"
-        )
-
-        stage_item.label_widget.set_text(
-            f"Plage DPI : "
-            f"{active_stage} / {len(stages)}"
-        )
-
-        for index, stage in enumerate(
-            stages,
-            start=1,
-        ):
-            item = stage_items[index - 1]
-
-            item.set_label(
-                f"{stage.x:>4}"
-            )
-
-            item.set_active(
-                index == active_stage
-            )
-
-        idle_item.label_widget.set_text(
-            f"Hibernation : {idle_minutes} min"
-        )
-
-        low_battery_item.label_widget.set_text(
-            f"Basse consommation : "
-            f"{low_battery_threshold} %"
+        status_view.show_connected(
+            state,
         )
 
     stage_items.extend(
