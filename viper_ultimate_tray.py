@@ -1,7 +1,5 @@
 import json
-import subprocess
 import sys
-from pathlib import Path
 
 from config.paths import (
     ICON_DIR,
@@ -18,11 +16,6 @@ from battery.icons import (
 
 from battery.estimation import (
     get_charge_estimation,
-)
-
-from razer.device import (
-    create_device_manager,
-    find_viper_ultimate_device,
 )
 
 from ui.menu import create_menu
@@ -61,25 +54,22 @@ def main() -> int:
 
     model_file = MODEL_FILE
 
-    device_manager = create_device_manager()
-
     with model_file.open(
         "r",
         encoding="utf-8",
     ) as file:
         charge_models = json.load(file)["sources"]
 
-    viper = find_viper_ultimate_device(
-        device_manager
-    )
-    mouse_connected = True
+    state = get_mouse_state()
 
-    if viper is None:
+    if not state.connected:
         print(
             "Razer Viper Ultimate not detected.",
             flush=True,
         )
         return 1
+
+    previous_connection_state = True
 
     indicator = AppIndicator3.Indicator.new(
         "viper-ultimate-tray",
@@ -94,7 +84,7 @@ def main() -> int:
     widgets = create_menu(
         menu_icon_dir,
         menu_battery_icon_dir,
-        viper,
+        state.device_name,
     )
 
     mouse_controller = MouseController()
@@ -184,27 +174,27 @@ def main() -> int:
             item.set_sensitive(False)
 
     def handle_disconnection() -> None:
-        nonlocal mouse_connected
+        nonlocal previous_connection_state
 
-        if mouse_connected:
+        if previous_connection_state:
             print(
                 "Mouse disconnected.",
                 flush=True,
             )
 
-        mouse_connected = False
+        previous_connection_state = False
         set_disconnected_state()
 
     def mark_as_connected() -> None:
-        nonlocal mouse_connected
+        nonlocal previous_connection_state
 
-        if not mouse_connected:
+        if not previous_connection_state:
             print(
                 "Mouse reconnected.",
                 flush=True,
             )
 
-        mouse_connected = True
+        previous_connection_state = True
 
     def update_mouse_status() -> None:
         try:

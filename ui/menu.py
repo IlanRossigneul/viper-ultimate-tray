@@ -89,14 +89,14 @@ def add_separator(
 def create_menu(
     menu_icon_dir,
     menu_battery_icon_dir,
-    viper,
+    device_name,
 ) -> MenuWidgets:
     menu = Gtk.Menu()
 
     # Create the main menu
     name_item = create_menu_item(
         menu_icon_dir / "mouse.svg",
-        viper.name,
+        device_name,
     )
 
     battery_item = create_menu_item(
