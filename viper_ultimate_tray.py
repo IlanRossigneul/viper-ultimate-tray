@@ -26,6 +26,8 @@ from razer.device import (
     get_charging_source,
 )
 
+from ui.menu import create_menu
+
 import gi
 
 gi.require_version(
@@ -43,8 +45,6 @@ from gi.repository import (
     GLib,
     AppIndicator3,
 )
-
-import openrazer.client
 
 
 def main() -> int:
@@ -65,65 +65,6 @@ def main() -> int:
         encoding="utf-8",
     ) as file:
         charge_models = json.load(file)["sources"]
-
-
-    def create_menu_item(
-        icon_path: Path | None = None,
-        text: str = "",
-    ) -> Gtk.MenuItem:
-        item = Gtk.MenuItem()
-
-        box = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
-            spacing=6,
-        )
-
-        if icon_path:
-            image = Gtk.Image.new_from_file(
-                str(icon_path)
-            )
-
-            box.pack_start(
-                image,
-                False,
-                False,
-                0,
-            )
-
-        label = Gtk.Label(
-            label=text,
-            xalign=0,
-        )
-
-        box.pack_start(
-            label,
-            True,
-            True,
-            0,
-        )
-
-        item.add(box)
-
-        item.label_widget = label
-        item.image_widget = (
-            image
-            if icon_path
-            else None
-        )
-
-        item.show_all()
-
-        return item
-
-    def add_separator(
-        menu: Gtk.Menu,
-    ) -> None:
-        separator = Gtk.SeparatorMenuItem()
-        separator.show()
-
-        menu.append(
-            separator
-        )
 
     viper = find_viper_ultimate_device(
         device_manager
@@ -147,104 +88,27 @@ def main() -> int:
         AppIndicator3.IndicatorStatus.ACTIVE
     )
 
-    menu = Gtk.Menu()
-
-    # Create the main menu
-    name_item = create_menu_item(
-        menu_icon_dir / "mouse.svg",
-        viper.name,
+    widgets = create_menu(
+        menu_icon_dir,
+        menu_battery_icon_dir,
+        viper,
     )
 
-    battery_item = create_menu_item(
-        menu_battery_icon_dir / "battery-4.svg",
-    )
+    menu = widgets.menu
 
-    dpi_item = create_menu_item(
-        menu_icon_dir / "dpi.svg",
-    )
+    name_item = widgets.name_item
+    battery_item = widgets.battery_item
+    dpi_item = widgets.dpi_item
+    stage_item = widgets.stage_item
+    idle_item = widgets.idle_item
+    low_battery_item = widgets.low_battery_item
 
-    stage_item = create_menu_item(
-        menu_icon_dir / "stages-dpi.svg",
-    )
+    stage_menu = widgets.stage_menu
+    stage_items = widgets.stage_items
 
-    idle_item = create_menu_item(
-        menu_icon_dir / "hibernation.svg",
-    )
-
-    low_battery_item = create_menu_item(
-        menu_icon_dir / "low-conso.svg",
-    )
-
-    stage_menu = Gtk.Menu()
-
-    stage_item.set_submenu(
-        stage_menu
-    )
-
-    stage_items = []
-
-    polychromatic_action = create_menu_item(
-        menu_icon_dir / "polychromatic.svg",
-        "Ouvrir Polychromatic",
-    )
-
-    polychromatic_action.connect(
-        "activate",
-        lambda *_:
-            subprocess.Popen(
-                ["polychromatic-controller"],
-                start_new_session=True,
-            ),
-    )
-
-    input_remapper_action = create_menu_item(
-        menu_icon_dir / "input-remapper.svg",
-        "Ouvrir Input Remapper",
-    )
-
-    input_remapper_action.connect(
-        "activate",
-        lambda *_:
-            subprocess.Popen(
-                ["input-remapper-gtk"],
-                start_new_session=True,
-            ),
-    )
-
-    quit_action = create_menu_item(
-        text="Quitter",
-    )
-
-    quit_action.connect(
-        "activate",
-        lambda *_:
-            Gtk.main_quit(),
-    )
-
-    menu.append(name_item)
-
-    add_separator(menu)
-
-    menu.append(battery_item)
-
-    add_separator(menu)
-
-    menu.append(dpi_item)
-    menu.append(stage_item)
-
-    add_separator(menu)
-
-    menu.append(idle_item)
-    menu.append(low_battery_item)
-
-    add_separator(menu)
-
-    menu.append(polychromatic_action)
-    menu.append(input_remapper_action)
-
-    add_separator(menu)
-
-    menu.append(quit_action)
+    polychromatic_action = widgets.polychromatic_action
+    input_remapper_action = widgets.input_remapper_action
+    quit_action = widgets.quit_action
 
     def set_active_stage(stage_number: int) -> None:
         if viper is None:
