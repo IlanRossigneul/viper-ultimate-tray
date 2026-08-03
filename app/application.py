@@ -35,6 +35,29 @@ class Application:
         self.status_view = None
         self.poller = None
 
+    def _create_status_view(
+        self,
+        widgets,
+        charge_models,
+        icon_dir,
+        tray_icon_dir,
+        menu_battery_icon_dir,
+    ):
+        return StatusView(
+            indicator=self.indicator,
+            icon_dir=icon_dir,
+            tray_icon_dir=tray_icon_dir,
+            menu_battery_icon_dir=menu_battery_icon_dir,
+            charge_models=charge_models,
+            name_item=widgets.name_item,
+            battery_item=widgets.battery_item,
+            dpi_item=widgets.dpi_item,
+            stage_item=widgets.stage_item,
+            idle_item=widgets.idle_item,
+            low_battery_item=widgets.low_battery_item,
+            stage_items=widgets.stage_items,
+        )
+    
     def run(self):
         icon_dir = ICON_DIR
 
@@ -73,29 +96,15 @@ class Application:
 
         menu = widgets.menu
 
-        name_item = widgets.name_item
-        battery_item = widgets.battery_item
-        dpi_item = widgets.dpi_item
-        stage_item = widgets.stage_item
-        idle_item = widgets.idle_item
-        low_battery_item = widgets.low_battery_item
-
         stage_menu = widgets.stage_menu
         stage_items = widgets.stage_items
 
-        self.status_view = StatusView(
-            indicator=self.indicator,
-            icon_dir=icon_dir,
-            tray_icon_dir=tray_icon_dir,
-            menu_battery_icon_dir=menu_battery_icon_dir,
-            charge_models=charge_models,
-            name_item=name_item,
-            battery_item=battery_item,
-            dpi_item=dpi_item,
-            stage_item=stage_item,
-            idle_item=idle_item,
-            low_battery_item=low_battery_item,
-            stage_items=stage_items,
+        self.status_view = self._create_status_view(
+            widgets,
+            charge_models,
+            icon_dir,
+            tray_icon_dir,
+            menu_battery_icon_dir,
         )
 
         def set_active_stage(stage_number: int) -> None:
