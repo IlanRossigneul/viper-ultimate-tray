@@ -57,6 +57,22 @@ class Application:
             low_battery_item=widgets.low_battery_item,
             stage_items=widgets.stage_items,
         )
+
+    def _set_active_stage(self, stage_number: int) -> None:
+        if not self.mouse_controller.set_dpi_stage(stage_number):
+            print(
+                "Failed to change the DPI stage.",
+                flush=True,
+            )
+
+    def _handle_disconnection(self) -> None:
+        self.status_view.show_disconnected()
+
+    def _handle_connected(
+        self,
+        state,
+    ) -> None:
+        self.status_view.show_connected(state)
     
     def run(self):
         icon_dir = ICON_DIR
@@ -107,32 +123,17 @@ class Application:
             menu_battery_icon_dir,
         )
 
-        def set_active_stage(stage_number: int) -> None:
-            if not self.mouse_controller.set_dpi_stage(
-                stage_number,
-            ):
-                print(
-                    "Failed to change the DPI stage.",
-                    flush=True,
-                )
-
-        def handle_disconnection() -> None:
-            self.status_view.show_disconnected()
-
-        def handle_connected(state):
-            self.status_view.show_connected(state)
-
         stage_items.extend(
             create_dpi_stage_menu(
                 stage_menu,
                 state.stages,
-                set_active_stage,
+                self._set_active_stage,
             )
         )
 
         self.poller = MousePoller(
-            on_connected=handle_connected,
-            on_disconnected=handle_disconnection,
+            on_connected=self._handle_connected,
+            on_disconnected=self._handle_disconnection,
         )
 
         self.poller.poll()
