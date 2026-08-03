@@ -43,15 +43,12 @@ class Application:
         self,
         widgets,
         charge_models,
-        icon_dir,
-        tray_icon_dir,
-        menu_battery_icon_dir,
     ):
         return StatusView(
             indicator=self.indicator,
-            icon_dir=icon_dir,
-            tray_icon_dir=tray_icon_dir,
-            menu_battery_icon_dir=menu_battery_icon_dir,
+            icon_dir=self.icon_dir,
+            tray_icon_dir=self.tray_icon_dir,
+            menu_battery_icon_dir=self.menu_battery_icon_dir,
             charge_models=charge_models,
             name_item=widgets.name_item,
             battery_item=widgets.battery_item,
@@ -110,9 +107,6 @@ class Application:
         self.status_view = self._create_status_view(
             widgets,
             charge_models,
-            self.icon_dir,
-            self.tray_icon_dir,
-            self.menu_battery_icon_dir,
         )
 
         stage_items.extend(
