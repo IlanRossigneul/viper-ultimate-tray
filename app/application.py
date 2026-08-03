@@ -1,11 +1,8 @@
-import json
-
 from config.paths import (
     ICON_DIR,
     MENU_ICON_DIR,
     MENU_BATTERY_ICON_DIR,
     TRAY_ICON_DIR,
-    MODEL_FILE,
 )
 
 from ui.menu import create_menu
@@ -16,6 +13,8 @@ from ui.tray_view import create_indicator
 from razer.mouse_state import get_mouse_state
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
+
+from battery.models import load_charge_models
 
 import gi
 
@@ -83,11 +82,7 @@ class Application:
 
         tray_icon_dir = TRAY_ICON_DIR
 
-        with MODEL_FILE.open(
-            "r",
-            encoding="utf-8",
-        ) as file:
-            charge_models = json.load(file)["sources"]
+        charge_models = load_charge_models()
 
         state = get_mouse_state()
 
