@@ -17,19 +17,21 @@ class MousePoller:
         self.on_connected = on_connected
         self.on_disconnected = on_disconnected
 
+        self.connected = True
+
     def poll(self) -> None:
         try:
             state = get_mouse_state()
 
         except Exception:
-            self.on_disconnected()
+            self.handle_disconnected()
             return
 
         if not state.connected:
-            self.on_disconnected()
+            self.handle_disconnected()
             return
 
-        self.on_connected(state)
+        self.handle_connected(state)
 
     def start(
         self,
@@ -43,3 +45,27 @@ class MousePoller:
             interval,
             refresh,
         )
+    
+    def handle_disconnected(self) -> None:
+        if self.connected:
+            print(
+                "Mouse disconnected.",
+                flush=True,
+            )
+
+        self.connected = False
+        self.on_disconnected()
+
+
+    def handle_connected(
+        self,
+        state: MouseState,
+    ) -> None:
+        if not self.connected:
+            print(
+                "Mouse reconnected.",
+                flush=True,
+            )
+
+        self.connected = True
+        self.on_connected(state)

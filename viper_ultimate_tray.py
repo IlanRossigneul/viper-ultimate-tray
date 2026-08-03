@@ -61,8 +61,6 @@ def main() -> int:
         )
         return 1
 
-    previous_connection_state = True
-
     indicator = AppIndicator3.Indicator.new(
         "viper-ultimate-tray",
         str(icon_dir / "mouse.svg"),
@@ -122,30 +120,9 @@ def main() -> int:
             )
 
     def handle_disconnection() -> None:
-        nonlocal previous_connection_state
-
-        if previous_connection_state:
-            print(
-                "Mouse disconnected.",
-                flush=True,
-            )
-
-        previous_connection_state = False
         status_view.show_disconnected()
 
-    def mark_as_connected() -> None:
-        nonlocal previous_connection_state
-
-        if not previous_connection_state:
-            print(
-                "Mouse reconnected.",
-                flush=True,
-            )
-
-        previous_connection_state = True
-
     def handle_connected(state):
-        mark_as_connected()
         status_view.show_connected(state)
 
     stage_items.extend(
