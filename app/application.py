@@ -34,6 +34,11 @@ class Application:
         self.status_view = None
         self.poller = None
 
+        self.icon_dir = ICON_DIR
+        self.menu_icon_dir = MENU_ICON_DIR
+        self.menu_battery_icon_dir = MENU_BATTERY_ICON_DIR
+        self.tray_icon_dir = TRAY_ICON_DIR
+
     def _create_status_view(
         self,
         widgets,
@@ -74,14 +79,6 @@ class Application:
         self.status_view.show_connected(state)
     
     def run(self):
-        icon_dir = ICON_DIR
-
-        menu_icon_dir = MENU_ICON_DIR
-
-        menu_battery_icon_dir = MENU_BATTERY_ICON_DIR
-
-        tray_icon_dir = TRAY_ICON_DIR
-
         charge_models = load_charge_models()
 
         state = get_mouse_state()
@@ -94,12 +91,12 @@ class Application:
             return 1
 
         self.indicator = create_indicator(
-            icon_dir,
+            self.icon_dir,
         )
 
         widgets = create_menu(
-            menu_icon_dir,
-            menu_battery_icon_dir,
+            self.menu_icon_dir,
+            self.menu_battery_icon_dir,
             state.device_name,
         )
 
@@ -113,9 +110,9 @@ class Application:
         self.status_view = self._create_status_view(
             widgets,
             charge_models,
-            icon_dir,
-            tray_icon_dir,
-            menu_battery_icon_dir,
+            self.icon_dir,
+            self.tray_icon_dir,
+            self.menu_battery_icon_dir,
         )
 
         stage_items.extend(
