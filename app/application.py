@@ -30,33 +30,25 @@ from gi.repository import Gtk
 class Application:
     def __init__(self):
         self.indicator = None
-        self.widgets = None
 
         self.mouse_controller = None
         self.status_view = None
         self.poller = None
 
-        self.icon_dir = None
-        self.menu_icon_dir = None
-        self.menu_battery_icon_dir = None
-        self.tray_icon_dir = None
-
-        self.charge_models = None
-
     def run(self):
-        self.icon_dir = ICON_DIR
+        icon_dir = ICON_DIR
 
-        self.menu_icon_dir = MENU_ICON_DIR
+        menu_icon_dir = MENU_ICON_DIR
 
-        self.menu_battery_icon_dir = MENU_BATTERY_ICON_DIR
+        menu_battery_icon_dir = MENU_BATTERY_ICON_DIR
 
-        self.tray_icon_dir = TRAY_ICON_DIR
+        tray_icon_dir = TRAY_ICON_DIR
 
         with MODEL_FILE.open(
             "r",
             encoding="utf-8",
         ) as file:
-            self.charge_models = json.load(file)["sources"]
+            charge_models = json.load(file)["sources"]
 
         state = get_mouse_state()
 
@@ -68,35 +60,35 @@ class Application:
             return 1
 
         self.indicator = create_indicator(
-            self.icon_dir,
+            icon_dir,
         )
 
-        self.widgets = create_menu(
-            self.menu_icon_dir,
-            self.menu_battery_icon_dir,
+        widgets = create_menu(
+            menu_icon_dir,
+            menu_battery_icon_dir,
             state.device_name,
         )
 
         self.mouse_controller = MouseController()
 
-        menu = self.widgets.menu
+        menu = widgets.menu
 
-        name_item = self.widgets.name_item
-        battery_item = self.widgets.battery_item
-        dpi_item = self.widgets.dpi_item
-        stage_item = self.widgets.stage_item
-        idle_item = self.widgets.idle_item
-        low_battery_item = self.widgets.low_battery_item
+        name_item = widgets.name_item
+        battery_item = widgets.battery_item
+        dpi_item = widgets.dpi_item
+        stage_item = widgets.stage_item
+        idle_item = widgets.idle_item
+        low_battery_item = widgets.low_battery_item
 
-        stage_menu = self.widgets.stage_menu
-        stage_items = self.widgets.stage_items
+        stage_menu = widgets.stage_menu
+        stage_items = widgets.stage_items
 
         self.status_view = StatusView(
             indicator=self.indicator,
-            icon_dir=self.icon_dir,
-            tray_icon_dir=self.tray_icon_dir,
-            menu_battery_icon_dir=self.menu_battery_icon_dir,
-            charge_models=self.charge_models,
+            icon_dir=icon_dir,
+            tray_icon_dir=tray_icon_dir,
+            menu_battery_icon_dir=menu_battery_icon_dir,
+            charge_models=charge_models,
             name_item=name_item,
             battery_item=battery_item,
             dpi_item=dpi_item,
