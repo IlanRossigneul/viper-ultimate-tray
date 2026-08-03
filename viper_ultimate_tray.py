@@ -12,6 +12,7 @@ from config.paths import (
 from ui.menu import create_menu
 from ui.dpi_menu import create_dpi_stage_menu
 from ui.status_view import StatusView
+from ui.tray_view import create_indicator
 
 from razer.mouse_state import get_mouse_state
 from razer.mouse_controller import MouseController
@@ -24,15 +25,7 @@ gi.require_version(
     "3.0",
 )
 
-gi.require_version(
-    "AppIndicator3",
-    "0.1",
-)
-
-from gi.repository import (
-    Gtk,
-    AppIndicator3,
-)
+from gi.repository import Gtk
 
 
 def main() -> int:
@@ -61,14 +54,8 @@ def main() -> int:
         )
         return 1
 
-    indicator = AppIndicator3.Indicator.new(
-        "viper-ultimate-tray",
-        str(icon_dir / "mouse.svg"),
-        AppIndicator3.IndicatorCategory.APPLICATION_STATUS,
-    )
-
-    indicator.set_status(
-        AppIndicator3.IndicatorStatus.ACTIVE
+    indicator = create_indicator(
+        icon_dir,
     )
 
     widgets = create_menu(
