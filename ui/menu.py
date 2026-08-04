@@ -1,5 +1,6 @@
-from pathlib import Path
 import subprocess
+from dataclasses import dataclass
+from pathlib import Path
 
 import gi
 
@@ -7,10 +8,8 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Gtk
 
-from dataclasses import dataclass
 
-
-@dataclass
+@dataclass(slots=True)
 class MenuWidgets:
     menu: Gtk.Menu
 
@@ -22,7 +21,7 @@ class MenuWidgets:
     low_battery_item: Gtk.MenuItem
 
     stage_menu: Gtk.Menu
-    stage_items: list
+    stage_items: list[Gtk.RadioMenuItem]
 
     polychromatic_action: Gtk.MenuItem
     input_remapper_action: Gtk.MenuItem
@@ -34,15 +33,12 @@ def create_menu_item(
 ) -> Gtk.MenuItem:
     item = Gtk.MenuItem()
 
-    box = Gtk.Box(
-        orientation=Gtk.Orientation.HORIZONTAL,
-        spacing=6,
-    )
+    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
 
-    if icon_path:
-        image = Gtk.Image.new_from_file(
-            str(icon_path)
-        )
+    image = None
+
+    if icon_path is not None:
+        image = Gtk.Image.new_from_file(str(icon_path))
 
         box.pack_start(
             image,
@@ -51,10 +47,7 @@ def create_menu_item(
             0,
         )
 
-    label = Gtk.Label(
-        label=text,
-        xalign=0,
-    )
+    label = Gtk.Label(label=text, xalign=0)
 
     box.pack_start(
         label,
@@ -66,15 +59,12 @@ def create_menu_item(
     item.add(box)
 
     item.label_widget = label
-    item.image_widget = (
-        image
-        if icon_path
-        else None
-    )
+    item.image_widget = image
 
     item.show_all()
 
     return item
+
 
 def add_separator(
     menu: Gtk.Menu,
@@ -82,50 +72,33 @@ def add_separator(
     separator = Gtk.SeparatorMenuItem()
     separator.show()
 
-    menu.append(
-        separator
-    )
+    menu.append(separator)
+
 
 def create_menu(
-    menu_icon_dir,
-    menu_battery_icon_dir,
-    device_name,
+    menu_icon_dir: Path,
+    menu_battery_icon_dir: Path,
+    device_name: str,
 ) -> MenuWidgets:
     menu = Gtk.Menu()
 
-    # Create the main menu
-    name_item = create_menu_item(
-        menu_icon_dir / "mouse.svg",
-        device_name,
-    )
+    name_item = create_menu_item(menu_icon_dir / "mouse.svg", device_name)
 
-    battery_item = create_menu_item(
-        menu_battery_icon_dir / "battery-4.svg",
-    )
+    battery_item = create_menu_item(menu_battery_icon_dir / "battery-4.svg")
 
-    dpi_item = create_menu_item(
-        menu_icon_dir / "dpi.svg",
-    )
+    dpi_item = create_menu_item(menu_icon_dir / "dpi.svg")
 
-    stage_item = create_menu_item(
-        menu_icon_dir / "stages-dpi.svg",
-    )
+    stage_item = create_menu_item(menu_icon_dir / "stages-dpi.svg")
 
-    idle_item = create_menu_item(
-        menu_icon_dir / "hibernation.svg",
-    )
+    idle_item = create_menu_item(menu_icon_dir / "hibernation.svg")
 
-    low_battery_item = create_menu_item(
-        menu_icon_dir / "low-conso.svg",
-    )
+    low_battery_item = create_menu_item(menu_icon_dir / "low-conso.svg")
 
     stage_menu = Gtk.Menu()
 
-    stage_item.set_submenu(
-        stage_menu
-    )
+    stage_item.set_submenu(stage_menu)
 
-    stage_items = []
+    stage_items: list[Gtk.RadioMenuItem] = []
 
     polychromatic_action = create_menu_item(
         menu_icon_dir / "polychromatic.svg",
@@ -155,9 +128,7 @@ def create_menu(
             ),
     )
 
-    quit_action = create_menu_item(
-        text="Quitter",
-    )
+    quit_action = create_menu_item(text="Quitter")
 
     quit_action.connect(
         "activate",

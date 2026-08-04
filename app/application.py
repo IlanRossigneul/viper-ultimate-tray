@@ -1,38 +1,37 @@
-from config.paths import (
-    ICON_DIR,
-    MENU_ICON_DIR,
-    MENU_BATTERY_ICON_DIR,
-    TRAY_ICON_DIR,
-)
-
-from ui.menu import create_menu
-from ui.dpi_menu import create_dpi_stage_menu
-from ui.status_view import StatusView
-from ui.tray_view import create_indicator
-
-from razer.mouse_state import get_mouse_state
-from razer.mouse_controller import MouseController
-from razer.mouse_poller import MousePoller
-
-from battery.models import load_charge_models
+from typing import Any
 
 import gi
 
-gi.require_version(
-    "Gtk",
-    "3.0",
+from battery.models import load_charge_models
+
+from config.paths import (
+    ICON_DIR,
+    MENU_BATTERY_ICON_DIR,
+    MENU_ICON_DIR,
+    TRAY_ICON_DIR,
 )
 
-from gi.repository import Gtk
+from razer.mouse_controller import MouseController
+from razer.mouse_poller import MousePoller
+from razer.mouse_state import MouseState, get_mouse_state
+
+from ui.dpi_menu import create_dpi_stage_menu
+from ui.menu import MenuWidgets, create_menu
+from ui.status_view import StatusView
+from ui.tray_view import create_indicator
+
+gi.require_version("Gtk", "3.0")
+
+from gi.repository import AppIndicator3, Gtk
 
 
 class Application:
-    def __init__(self):
-        self.indicator = None
+    def __init__(self) -> None:
+        self.indicator: AppIndicator3.Indicator | None = None
 
-        self.mouse_controller = None
-        self.status_view = None
-        self.poller = None
+        self.mouse_controller: MouseController | None = None
+        self.status_view: StatusView | None = None
+        self.poller: MousePoller | None = None
 
         self.icon_dir = ICON_DIR
         self.menu_icon_dir = MENU_ICON_DIR
@@ -41,9 +40,9 @@ class Application:
 
     def _create_status_view(
         self,
-        widgets,
-        charge_models,
-    ):
+        widgets: MenuWidgets,
+        charge_models: list[dict[str, Any]],
+    ) -> StatusView:
         return StatusView(
             indicator=self.indicator,
             icon_dir=self.icon_dir,
@@ -61,35 +60,27 @@ class Application:
 
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
-            print(
-                "Failed to change the DPI stage.",
-                flush=True,
-            )
+            print("Failed to change the DPI stage.", flush=True)
 
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
 
     def _handle_connected(
         self,
-        state,
+        state: MouseState,
     ) -> None:
         self.status_view.show_connected(state)
-    
-    def run(self):
+
+    def run(self) -> int:
         charge_models = load_charge_models()
 
         state = get_mouse_state()
 
         if not state.connected:
-            print(
-                "Razer Viper Ultimate not detected.",
-                flush=True,
-            )
+            print("Razer Viper Ultimate not detected.", flush=True)
             return 1
 
-        self.indicator = create_indicator(
-            self.icon_dir,
-        )
+        self.indicator = create_indicator(self.icon_dir)
 
         widgets = create_menu(
             self.menu_icon_dir,
@@ -104,10 +95,7 @@ class Application:
         stage_menu = widgets.stage_menu
         stage_items = widgets.stage_items
 
-        self.status_view = self._create_status_view(
-            widgets,
-            charge_models,
-        )
+        self.status_view = self._create_status_view(widgets, charge_models)
 
         stage_items.extend(
             create_dpi_stage_menu(
@@ -125,9 +113,7 @@ class Application:
         self.poller.poll()
         self.poller.start()
 
-        self.indicator.set_menu(
-            menu,
-        )
+        self.indicator.set_menu(menu)
 
         menu.show_all()
 

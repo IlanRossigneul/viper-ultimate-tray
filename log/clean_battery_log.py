@@ -2,43 +2,16 @@ import csv
 import sys
 from pathlib import Path
 
-LOG_DIR = Path(__file__).parent
+LOG_DIR = Path(__file__).resolve().parent
 
-VALID_SOURCES = {
-    "wired",
-    "wireless",
-}
-
-if len(sys.argv) != 2:
-    print(
-        "Usage:\n"
-        "    python clean_battery_log.py wired\n"
-        "    python clean_battery_log.py wireless"
-    )
-    sys.exit(1)
-
-source = sys.argv[1].lower()
-
-if source not in VALID_SOURCES:
-    print(
-        f"Invalid source: {source}\n"
-        "Accepted values: wired, wireless"
-    )
-    sys.exit(1)
-
-INPUT_FILE = (
-    LOG_DIR
-    / f"battery_{source}_charge_log.csv"
-)
-
-OUTPUT_FILE = (
-    LOG_DIR
-    / f"battery_{source}_charge_log_cleaned.csv"
-)
+VALID_SOURCES = {"wired", "wireless"}
 
 
-def clean_log() -> None:
-    with INPUT_FILE.open(
+def clean_log(
+    input_file: Path,
+    output_file: Path,
+) -> None:
+    with input_file.open(
         "r",
         newline="",
         encoding="utf-8",
@@ -46,31 +19,22 @@ def clean_log() -> None:
         rows = list(csv.DictReader(file))
 
     if not rows:
-        print("Le fichier est vide.")
+        print("File is empty.")
         return
 
-    cleaned_rows = []
+    cleaned_rows: list[dict[str, str]] = []
 
     for index, row in enumerate(rows):
-        current_state = (
-            row["battery_percent"],
-            row["is_charging"],
-        )
+        current_state = (row["battery_percent"], row["is_charging"])
 
         previous_state = None
         next_state = None
 
         if index > 0:
-            previous_state = (
-                rows[index - 1]["battery_percent"],
-                rows[index - 1]["is_charging"],
-            )
+            previous_state = (rows[index - 1]["battery_percent"], rows[index - 1]["is_charging"])
 
         if index < len(rows) - 1:
-            next_state = (
-                rows[index + 1]["battery_percent"],
-                rows[index + 1]["is_charging"],
-            )
+            next_state = (rows[index + 1]["battery_percent"], rows[index + 1]["is_charging"])
 
         is_first = current_state != previous_state
         is_last = current_state != next_state
@@ -78,7 +42,7 @@ def clean_log() -> None:
         if is_first or is_last:
             cleaned_rows.append(row)
 
-    with OUTPUT_FILE.open(
+    with output_file.open(
         "w",
         newline="",
         encoding="utf-8",
@@ -95,18 +59,34 @@ def clean_log() -> None:
         writer.writeheader()
         writer.writerows(cleaned_rows)
 
-    print(
-        f"{len(rows)} lignes originales.",
-    )
+    print(f"{len(rows)} original rows.")
 
-    print(
-        f"{len(cleaned_rows)} lignes conservées.",
-    )
+    print(f"{len(cleaned_rows)} preserved rows.")
 
-    print(
-        f"Résultat : {OUTPUT_FILE.name}",
-    )
+    print(f"Result: {output_file.name}")
+
+
+def main() -> None:
+    if len(sys.argv) != 2:
+        print(
+            "Usage:\n"
+            "    python clean_battery_log.py wired\n"
+            "    python clean_battery_log.py wireless"
+        )
+        sys.exit(1)
+
+    source = sys.argv[1].lower()
+
+    if source not in VALID_SOURCES:
+        print(f"Invalid source: {source}\nAccepted values: wired, wireless")
+        sys.exit(1)
+
+    input_file = LOG_DIR / f"battery_{source}_charge_log.csv"
+
+    output_file = LOG_DIR / f"battery_{source}_charge_log_cleaned.csv"
+
+    clean_log(input_file, output_file)
 
 
 if __name__ == "__main__":
-    clean_log()
+    main()

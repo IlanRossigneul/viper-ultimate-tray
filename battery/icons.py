@@ -13,13 +13,10 @@ def get_battery_icon(
     else:
         level = 4
 
-    prefix = (
-        "battery-charging"
-        if is_charging
-        else "battery"
-    )
+    prefix = "battery-charging" if is_charging else "battery"
 
     return f"{prefix}-{level}.svg"
+
 
 def get_tray_icon(
     battery: float,
@@ -29,7 +26,4 @@ def get_tray_icon(
 
     suffix = "_c" if is_charging else ""
 
-    return (
-        f"bat_{battery_level}"
-        f"{suffix}.png"
-    )
+    return f"bat_{battery_level}{suffix}.png"

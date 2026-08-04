@@ -3,35 +3,30 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import openrazer.client
+from openrazer.client import DeviceManager
 
 
-LOG_DIR = Path(__file__).parent
-INTERVAL = 1
+LOG_DIR = Path(__file__).resolve().parent
+LOG_INTERVAL_SECONDS = 1
 
 
-def find_viper(device_manager):
+def find_viper(device_manager: DeviceManager) -> object | None:
     return next(
         (
             device
             for device in device_manager.devices
-            if device.name.startswith(
-                "Razer Viper Ultimate"
-            )
+            if device.name.startswith("Razer Viper Ultimate")
         ),
         None,
     )
 
 
-def get_log_file(viper) -> Path:
-    if "(Wired)" in viper._name:
-        filename = (
-            "battery_wired_charge_log.csv"
-        )
-    else:
-        filename = (
-            "battery_wireless_charge_log.csv"
-        )
+def get_log_file(mouse) -> Path:
+    filename = (
+        "battery_wired_charge_log.csv"
+        if "(Wired)" in mouse._name
+        else "battery_wireless_charge_log.csv"
+    )
 
     return LOG_DIR / filename
 
@@ -45,86 +40,42 @@ def initialize_log_file(
         encoding="utf-8",
     ) as file:
         writer = csv.writer(file)
-
-        writer.writerow(
-            [
-                "timestamp",
-                "battery_percent",
-                "is_charging",
-            ]
-        )
+        writer.writerow(["timestamp", "battery_percent", "is_charging"])
 
 
 def main() -> None:
-    device_manager = (
-        openrazer.client.DeviceManager()
-    )
+    device_manager = DeviceManager()
 
-    viper = find_viper(
-        device_manager
-    )
+    mouse = find_viper(device_manager)
 
-    if viper is None:
-        print(
-            "Souris non détectée.",
-            flush=True,
-        )
+    if mouse is None:
+        print("Mouse not detected.", flush=True)
         return
 
-    log_file = get_log_file(
-        viper
-    )
+    log_file = get_log_file(mouse)
 
-    initialize_log_file(
-        log_file
-    )
+    initialize_log_file(log_file)
 
-    print(
-        f"Mode détecté : "
-        f"{viper._name}",
-        flush=True,
-    )
+    print(f"Detected mode: {mouse._name}", flush=True)
 
-    print(
-        f"Fichier : "
-        f"{log_file.name}",
-        flush=True,
-    )
+    print(f"Log file: {log_file.name}", flush=True)
 
-    print(
-        f"Logging toutes les "
-        f"{INTERVAL} secondes.",
-        flush=True,
-    )
+    print(f"Logging every {LOG_INTERVAL_SECONDS} second(s).", flush=True)
 
     while True:
         try:
-            battery = (
-                viper
-                ._dbus_interfaces["power"]
-                .getBattery()
-            )
+            battery = mouse._dbus_interfaces["power"].getBattery()
 
-            is_charging = (
-                viper.is_charging
-            )
+            is_charging = mouse.is_charging
 
-            timestamp = (
-                datetime.now()
-                .astimezone()
-                .isoformat(
-                    timespec="seconds"
-                )
-            )
+            timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
 
             with log_file.open(
                 "a",
                 newline="",
                 encoding="utf-8",
             ) as file:
-                writer = csv.writer(
-                    file
-                )
+                writer = csv.writer(file)
 
                 writer.writerow(
                     [
@@ -135,15 +86,9 @@ def main() -> None:
                 )
 
         except Exception as error:
-            print(
-                "Impossible de lire "
-                f"la souris : {error}",
-                flush=True,
-            )
+            print(f"Unable to read mouse state: {error}", flush=True)
 
-        time.sleep(
-            INTERVAL
-        )
+        time.sleep(LOG_INTERVAL_SECONDS)
 
 
 if __name__ == "__main__":

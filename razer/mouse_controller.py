@@ -1,12 +1,8 @@
-from razer.device import (
-    create_device_manager,
-    find_viper_ultimate_device,
-)
+from razer.device import create_device_manager, find_viper_ultimate_device
 
 
 class MouseController:
-
-    def __init__(self):
+    def __init__(self) -> None:
         self._device_manager = create_device_manager()
 
     def set_dpi_stage(
@@ -23,10 +19,7 @@ class MouseController:
         try:
             _, stages = mouse.dpi_stages
 
-            mouse.dpi_stages = (
-                stage_number,
-                stages,
-            )
+            mouse.dpi_stages = (stage_number, stages)
 
             return True
 

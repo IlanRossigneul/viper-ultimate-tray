@@ -1,33 +1,17 @@
+from typing import Any
+
+
 def _format_duration(
     remaining_seconds: int,
 ) -> str:
     if remaining_seconds <= 3600:
-        minutes = round(
-            remaining_seconds / 60
-        )
+        minutes = round(remaining_seconds / 60)
 
-        return (
-            f"{minutes} min environ "
-            f"avant pleine recharge"
-        )
+        return f"{minutes} min environ avant pleine recharge"
 
-    hours, remainder = divmod(
-        remaining_seconds,
-        3600,
-    )
+    hours, remainder = divmod(remaining_seconds, 3600)
 
-    minutes = round(
-        remainder / 60
-    )
-
-    hours, remainder = divmod(
-    remaining_seconds,
-    3600,
-)
-
-    minutes = round(
-        remainder / 60
-    )
+    minutes = round(remainder / 60)
 
     if minutes == 60:
         hours += 1
@@ -36,15 +20,13 @@ def _format_duration(
     if minutes == 0:
         return f"{hours} h environ avant pleine recharge"
 
-    return (
-        f"{hours} h {minutes} min environ "
-        f"avant pleine recharge"
-    )
+    return f"{hours} h {minutes} min environ avant pleine recharge"
+
 
 def get_charge_estimation(
     battery: float,
     charging_source: str,
-    charge_models: dict,
+    charge_models: dict[str, dict[str, Any]],
 ) -> str | None:
     battery_level = int(battery)
 
@@ -55,15 +37,9 @@ def get_charge_estimation(
 
     charge_model = source.get("average", {})
 
-    remaining_seconds = charge_model.get(
-        str(battery_level)
-    )
+    remaining_seconds = charge_model.get(str(battery_level))
 
     if remaining_seconds is None:
         return None
 
-    return (
-        _format_duration(
-            remaining_seconds
-        )
-    )
+    return _format_duration(remaining_seconds)

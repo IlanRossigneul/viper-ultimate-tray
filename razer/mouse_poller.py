@@ -2,10 +2,7 @@ from collections.abc import Callable
 
 from gi.repository import GLib
 
-from razer.mouse_state import (
-    MouseState,
-    get_mouse_state,
-)
+from razer.mouse_state import MouseState, get_mouse_state
 
 
 class MousePoller:
@@ -14,58 +11,48 @@ class MousePoller:
         on_connected: Callable[[MouseState], None],
         on_disconnected: Callable[[], None],
     ):
-        self.on_connected = on_connected
-        self.on_disconnected = on_disconnected
+        self.on_connected: Callable[[MouseState], None] = on_connected
+        self.on_disconnected: Callable[[], None] = on_disconnected
 
-        self.connected = True
+        self.connected: bool = True
 
     def poll(self) -> None:
         try:
             state = get_mouse_state()
 
         except Exception:
-            self.handle_disconnected()
+            self._handle_disconnected()
             return
 
         if not state.connected:
-            self.handle_disconnected()
+            self._handle_disconnected()
             return
 
-        self.handle_connected(state)
+        self._handle_connected(state)
 
     def start(
         self,
         interval: int = 2000,
     ) -> None:
-        def refresh():
+        def refresh() -> bool:
             self.poll()
             return True
 
-        GLib.timeout_add(
-            interval,
-            refresh,
-        )
+        GLib.timeout_add(interval, refresh)
     
-    def handle_disconnected(self) -> None:
+    def _handle_disconnected(self) -> None:
         if self.connected:
-            print(
-                "Mouse disconnected.",
-                flush=True,
-            )
+            print("Mouse disconnected.", flush=True)
 
         self.connected = False
         self.on_disconnected()
 
-
-    def handle_connected(
+    def _handle_connected(
         self,
         state: MouseState,
     ) -> None:
         if not self.connected:
-            print(
-                "Mouse reconnected.",
-                flush=True,
-            )
+            print("Mouse reconnected.", flush=True)
 
         self.connected = True
         self.on_connected(state)

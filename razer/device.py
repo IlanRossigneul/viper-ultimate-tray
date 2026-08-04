@@ -1,11 +1,15 @@
-import openrazer.client
+from typing import Any
+
+from openrazer.client import DeviceManager
 
 
-def create_device_manager():
-    return openrazer.client.DeviceManager()
+def create_device_manager() -> DeviceManager:
+    return DeviceManager()
 
 
-def find_viper_ultimate_device(manager):
+def find_viper_ultimate_device(
+    manager: DeviceManager,
+) -> Any | None:
     return next(
         (
             device
@@ -16,7 +20,9 @@ def find_viper_ultimate_device(manager):
     )
 
 
-def get_charging_source(device):
+def get_charging_source(
+    device: Any,
+) -> str:
     if "(Wired)" in device._name:
         return "wired"
 

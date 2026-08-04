@@ -39,7 +39,7 @@ class MouseState:
 
 
 def _convert_dpi_stages(
-    stages,
+    stages: list[tuple[int, int]],
 ) -> list[DPIStage]:
     return [
         DPIStage(
@@ -69,9 +69,7 @@ def get_mouse_state() -> MouseState:
     try:
         device_manager = create_device_manager()
 
-        mouse = find_viper_ultimate_device(
-            device_manager
-        )
+        mouse = find_viper_ultimate_device(device_manager)
 
     except Exception:
         return _get_disconnected_state()
@@ -85,17 +83,11 @@ def get_mouse_state() -> MouseState:
 
         dpi_x, _ = mouse.dpi
 
-        active_stage, stages = (
-            mouse.dpi_stages
-        )
+        active_stage, stages = mouse.dpi_stages
 
-        idle_minutes = (
-            mouse.get_idle_time() // 60
-        )
+        idle_minutes = mouse.get_idle_time() // 60
 
-        low_battery_threshold = (
-            mouse.get_low_battery_threshold()
-        )
+        low_battery_threshold = mouse.get_low_battery_threshold()
 
     except Exception:
         return _get_disconnected_state()
@@ -105,9 +97,7 @@ def get_mouse_state() -> MouseState:
         device_name=mouse.name,
         battery=battery,
         charging=charging,
-        charging_source=ChargingSource(
-            get_charging_source(mouse)
-        ),
+        charging_source=ChargingSource(get_charging_source(mouse)),
         dpi=dpi_x,
         active_stage=active_stage,
         stages=_convert_dpi_stages(stages),
