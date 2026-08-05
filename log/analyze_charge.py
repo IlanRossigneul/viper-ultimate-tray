@@ -2,6 +2,7 @@ import csv
 import json
 import math
 import sys
+import traceback
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
@@ -10,19 +11,310 @@ from typing import Any
 
 ChargeEntry = dict[str, datetime | float | bool]
 
-FULL_CHARGE_LEVEL = 100
 EMPTY_CHARGE_LEVEL = 0
 
 
-LOG_DIR = Path(__file__).resolve().parent
+class ChargeAnalyzer:
+    LOG_FILES: dict[str, str] = {
+        "wired": "battery_wired_charge_log_cleaned.csv",
+        "wireless": "battery_wireless_charge_log_cleaned.csv",
+    }
 
-MODEL_FILE = LOG_DIR / "battery_charge_model.json"
-SAMPLES_FILE = LOG_DIR / "battery_charge_samples.json"
+    def __init__(
+        self,
+        log_dir: Path,
+        verbose: bool = False,
+    ):
+        self.log_dir = log_dir
 
-SOURCES: dict[str, dict[str, str]] = {
-    "wired": {"log_file": "battery_wired_charge_log_cleaned.csv"},
-    "wireless": {"log_file": "battery_wireless_charge_log_cleaned.csv"},
-}
+        self.verbose = verbose
+
+        self.model_file = log_dir / "battery_charge_model.json"
+
+        self.samples_file = log_dir / "battery_charge_samples.json"
+
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message, flush=True)
+
+
+    def _load_charge_log(
+        self,
+        mode: str,
+    ) -> list[ChargeEntry]:
+        log_file = self.log_dir / self.LOG_FILES[mode]
+
+        if not log_file.exists():
+            raise FileNotFoundError(f"File not found: {log_file.name}")
+
+        with log_file.open(
+            "r",
+            newline="",
+            encoding="utf-8",
+        ) as file:
+            reader = csv.DictReader(file)
+
+            return [
+                {
+                    "timestamp": datetime.fromisoformat(row["timestamp"]),
+                    "battery_percent": float(row["battery_percent"]),
+                    "is_charging": row["is_charging"] == "True",
+                }
+                for row in reader
+            ]
+
+
+    def _get_charging_entries(
+        self,
+        entries: list[ChargeEntry],
+    ) -> list[ChargeEntry]:
+        charging_entries = [
+            entry
+            for entry in entries
+            if entry["is_charging"]
+        ]
+
+        if not charging_entries:
+            raise ValueError("No charging data found.")
+
+        return charging_entries
+
+
+    def _get_charge_level(
+        self,
+        entry: ChargeEntry,
+    ) -> int | None:
+        battery_percent = entry["battery_percent"]
+
+        if entry["is_charging"] and battery_percent == EMPTY_CHARGE_LEVEL:
+            return None
+
+        return math.floor(battery_percent)
+
+
+    def _build_charge_transitions(
+        self,
+        entries: list[ChargeEntry],
+    ) -> dict[str, int]:
+        charging_entries = self._get_charging_entries(entries)
+
+        level_durations: defaultdict[str, list[int]] = defaultdict(list)
+
+        previous_entry: ChargeEntry | None = None
+        previous_level: int | None = None
+        first_level: int | None = None
+
+        for entry in charging_entries:
+            current_level = self._get_charge_level(entry)
+
+            if current_level is None:
+                continue
+
+            if previous_entry is None:
+                previous_entry = entry
+                previous_level = current_level
+                first_level = current_level
+                continue
+
+            assert previous_level is not None
+            assert first_level is not None
+
+            if current_level > previous_level:
+                duration = int(
+                    (entry["timestamp"] - previous_entry["timestamp"]).total_seconds()
+                )
+
+                is_initial_partial_transition = (
+                    first_level != EMPTY_CHARGE_LEVEL
+                    and previous_level == first_level
+                )
+
+                if not is_initial_partial_transition:
+                    level_durations[str(previous_level)].append(duration)
+
+                previous_entry = entry
+                previous_level = current_level
+
+        if not level_durations:
+            raise ValueError("No charge level durations found.")
+
+        return dict(
+            sorted(
+                {
+                    level: sum(durations)
+                    for level, durations in level_durations.items()
+                }.items(),
+                key=lambda item: int(item[0]),
+            )
+        )
+
+
+    def _load_samples(self) -> dict[str, Any]:
+        samples_file = self.samples_file
+
+        if not samples_file.exists():
+            return {"wired": [], "wireless": [],}
+
+        with samples_file.open(
+            "r",
+            encoding="utf-8",
+        ) as file:
+            return json.load(file)
+
+
+    def _load_model(self) -> dict[str, Any]:
+        model_file = self.model_file
+
+        if not model_file.exists():
+            return {
+                "wired": {
+                    "statistics": {
+                        "sample_count": 0,
+                        "last_updated": None,
+                    },
+                    "average": {},
+                },
+                "wireless": {
+                    "statistics": {
+                        "sample_count": 0,
+                        "last_updated": None,
+                    },
+                    "average": {},
+                },
+            }
+
+        with model_file.open(
+            "r",
+            encoding="utf-8",
+        ) as file:
+            return json.load(file)
+
+
+    def _calculate_average_transitions(
+        self,
+        samples: list[dict[str, Any]],
+    ) -> dict[str, int]:
+        level_durations: defaultdict[str, list[int]] = defaultdict(list)
+
+        for sample in samples:
+            for level, seconds in sample["transitions"].items():
+                level_durations[level].append(seconds)
+
+        average_transitions: dict[str, int] = {}
+
+        for level, durations in level_durations.items():
+            average_transitions[level] = round(sum(durations) / len(durations))
+
+        return dict(sorted(average_transitions.items(), key=lambda item: int(item[0])))
+
+
+    def _sample_already_exists(
+        self,
+        samples: list[dict[str, Any]],
+        transitions: dict[str, int],
+    ) -> bool:
+        if not samples:
+            return False
+
+        return samples[-1]["transitions"] == transitions
+
+
+    def _save_model(
+        self,
+        data: dict[str, Any],
+    ) -> None:
+        model_file = self.model_file
+
+        with model_file.open(
+            "w",
+            encoding="utf-8",
+        ) as file:
+            json.dump(
+                data,
+                file,
+                indent=4,
+            )
+
+            file.write("\n")
+
+
+    def _save_samples(
+        self,
+        data: dict[str, Any],
+    ) -> None:
+        samples_file = self.samples_file
+
+        with samples_file.open(
+            "w",
+            encoding="utf-8",
+        ) as file:
+            json.dump(
+                data,
+                file,
+                indent=4,
+            )
+
+            file.write("\n")
+
+
+    def _format_duration(
+        self,
+        seconds: int,
+    ) -> str:
+        hours, remainder = divmod(seconds, 3600)
+
+        minutes, seconds = divmod(remainder, 60)
+
+        if hours:
+            return f"{hours} h {minutes:02d} min {seconds:02d} s"
+
+        return f"{minutes} min {seconds:02d} s"
+
+
+    def analyze_mode(
+        self,
+        mode: str,
+    ) -> None:
+        self._log(f"\nAnalyze {mode}...")
+
+        entries = self._load_charge_log(mode)
+
+        transitions = self._build_charge_transitions(entries)
+
+        samples = self._load_samples()
+
+        model = self._load_model()
+
+        if self._sample_already_exists(samples[mode], transitions):
+            self._log("Sample already exists.")
+            return
+
+        now = datetime.now().astimezone().isoformat(timespec="seconds")
+
+        samples[mode].append({"created_at": now, "transitions": transitions,})
+
+        model[mode]["average"] = self._calculate_average_transitions(samples[mode])
+
+        model[mode]["statistics"]["sample_count"] = len(samples[mode])
+
+        model[mode]["statistics"]["last_updated"] = now
+
+        self._save_samples(samples)
+
+        self._save_model(model)
+
+        self._log(f"Sample added: {model[mode]['statistics']['sample_count']}")
+
+        self._log(f"Average model {mode}:")
+
+        for level, seconds in model[mode]["average"].items():
+            self._log(f"{level:>2} % : {self._format_duration(seconds)}")
+
+
+    def analyze_all(self) -> None:
+        for mode in self.LOG_FILES:
+            self.analyze_mode(mode)
 
 
 def print_usage() -> None:
@@ -35,265 +327,30 @@ def print_usage() -> None:
     )
 
 
-def load_charge_log(
-    source: str,
-) -> list[ChargeEntry]:
-    log_file = LOG_DIR / SOURCES[source]["log_file"]
-
-    if not log_file.exists():
-        raise FileNotFoundError(f"File not found: {log_file.name}")
-
-    with log_file.open(
-        "r",
-        newline="",
-        encoding="utf-8",
-    ) as file:
-        reader = csv.DictReader(file)
-
-        return [
-            {
-                "timestamp": datetime.fromisoformat(row["timestamp"]),
-                "battery_percent": float(row["battery_percent"]),
-                "is_charging": row["is_charging"] == "True",
-            }
-            for row in reader
-        ]
-
-
-def get_charging_entries(
-    entries: list[ChargeEntry],
-) -> list[ChargeEntry]:
-    charging_entries = [
-        entry
-        for entry in entries
-        if entry["is_charging"]
-    ]
-
-    if not charging_entries:
-        raise ValueError("No charging data found.")
-
-    return charging_entries
-
-
-def get_charge_level(
-    entry: ChargeEntry,
-) -> int | None:
-    battery_percent = entry["battery_percent"]
-
-    if entry["is_charging"] and battery_percent == EMPTY_CHARGE_LEVEL:
-        return None
-
-    return math.floor(battery_percent)
-
-
-def build_charge_transitions(
-    entries: list[ChargeEntry],
-) -> dict[str, int]:
-    charging_entries = get_charging_entries(entries)
-
-    level_durations: defaultdict[str, list[int]] = defaultdict(list)
-
-    previous_entry: ChargeEntry | None = None
-    previous_level: int | None = None
-    first_level: int | None = None
-
-    for entry in charging_entries:
-        current_level = get_charge_level(entry)
-
-        if current_level is None:
-            continue
-
-        if previous_entry is None:
-            previous_entry = entry
-            previous_level = current_level
-            first_level = current_level
-            continue
-
-        assert previous_level is not None
-        assert first_level is not None
-
-        if current_level > previous_level:
-            duration = int(
-                (entry["timestamp"] - previous_entry["timestamp"]).total_seconds()
-            )
-
-            is_initial_partial_transition = (
-                first_level != EMPTY_CHARGE_LEVEL
-                and previous_level == first_level
-            )
-
-            if not is_initial_partial_transition:
-                level_durations[str(previous_level)].append(duration)
-
-            previous_entry = entry
-            previous_level = current_level
-
-    if not level_durations:
-        raise ValueError("No charge level durations found.")
-
-    return dict(
-        sorted(
-            {
-                level: sum(durations)
-                for level, durations in level_durations.items()
-            }.items(),
-            key=lambda item: int(item[0]),
-        )
-    )
-
-
-def load_samples() -> dict[str, Any]:
-    if not SAMPLES_FILE.exists():
-        return {"wired": [], "wireless": [],}
-
-    with SAMPLES_FILE.open(
-        "r",
-        encoding="utf-8",
-    ) as file:
-        return json.load(file)
-
-
-def load_model() -> dict[str, Any]:
-    if not MODEL_FILE.exists():
-        return {
-            "wired": {
-                "statistics": {
-                    "sample_count": 0,
-                    "last_updated": None,
-                },
-                "average": {},
-            },
-            "wireless": {
-                "statistics": {
-                    "sample_count": 0,
-                    "last_updated": None,
-                },
-                "average": {},
-            },
-        }
-
-    with MODEL_FILE.open(
-        "r",
-        encoding="utf-8",
-    ) as file:
-        return json.load(file)
-
-
-def calculate_average_transitions(
-    samples: list[dict[str, Any]],
-) -> dict[str, int]:
-    level_durations: defaultdict[str, list[int]] = defaultdict(list)
-
-    for sample in samples:
-        for level, seconds in sample["transitions"].items():
-            level_durations[level].append(seconds)
-
-    average_transitions: dict[str, int] = {}
-
-    for level, durations in level_durations.items():
-        average_transitions[level] = round(sum(durations) / len(durations))
-
-    return dict(sorted(average_transitions.items(), key=lambda item: int(item[0])))
-
-
-def save_model(
-    data: dict[str, Any],
-) -> None:
-    with MODEL_FILE.open(
-        "w",
-        encoding="utf-8",
-    ) as file:
-        json.dump(
-            data,
-            file,
-            indent=4,
-        )
-
-        file.write("\n")
-
-
-def save_samples(
-    data: dict[str, Any],
-) -> None:
-    with SAMPLES_FILE.open(
-        "w",
-        encoding="utf-8",
-    ) as file:
-        json.dump(
-            data,
-            file,
-            indent=4,
-        )
-
-        file.write("\n")
-
-
-def format_duration(
-    seconds: int,
-) -> str:
-    hours, remainder = divmod(seconds, 3600)
-
-    minutes, seconds = divmod(remainder, 60)
-
-    if hours:
-        return f"{hours} h {minutes:02d} min {seconds:02d} s"
-
-    return f"{minutes} min {seconds:02d} s"
-
-
-def analyze_source(
-    source: str,
-) -> None:
-    print(f"\nAnalyze {source}...", flush=True)
-
-    entries = load_charge_log(source)
-
-    transitions = build_charge_transitions(entries)
-
-    samples = load_samples()
-    model_data = load_model()
-
-    now = datetime.now().astimezone().isoformat(timespec="seconds")
-
-    samples[source].append({"created_at": now, "transitions": transitions,})
-
-    model_data[source]["average"] = calculate_average_transitions(samples[source])
-
-    model_data[source]["statistics"]["sample_count"] = len(samples[source])
-
-    model_data[source]["statistics"]["last_updated"] = now
-
-    save_samples(samples)
-
-    save_model(model_data)
-
-    print(f"Sample added: {model_data[source]['statistics']['sample_count']}", flush=True)
-
-    print(f"Average model {source}:", flush=True)
-
-    for level, seconds in model_data[source]["average"].items():
-        print(f"{level:>2} % : {format_duration(seconds)}")
-
-
 def main() -> None:
-    args = sys.argv[1:]
+    try:
+        args = sys.argv[1:]
 
-    if len(args) > 1:
-        print_usage()
-        return
+        analyzer = ChargeAnalyzer(Path(__file__).resolve().parent, verbose=True)
 
-    if args:
-        source = args[0]
-
-        if source not in SOURCES:
+        if len(args) > 1:
             print_usage()
             return
 
-        analyze_source(source)
+        if args:
+            mode = args[0]
 
-    else:
-        for source in SOURCES:
-            analyze_source(source)
+            if mode not in analyzer.LOG_FILES:
+                print_usage()
+                return
+
+            analyzer.analyze_mode(mode)
+            return
+
+        analyzer.analyze_all()
+
+    except Exception:
+        traceback.print_exc()
 
 
 if __name__ == "__main__":
