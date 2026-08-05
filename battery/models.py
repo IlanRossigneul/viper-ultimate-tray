@@ -9,4 +9,4 @@ def load_charge_models() -> list[dict[str, Any]]:
         "r",
         encoding="utf-8",
     ) as model_file:
-        return json.load(model_file)["sources"]
+        return json.load(model_file)

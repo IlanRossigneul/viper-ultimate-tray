@@ -37,9 +37,20 @@ def get_charge_estimation(
 
     charge_model = source.get("average", {})
 
-    remaining_seconds = charge_model.get(str(battery_level))
+    remaining_seconds = 0
 
-    if remaining_seconds is None:
+    current_transition = charge_model.get(str(battery_level))
+
+    if current_transition is not None:
+        remaining_seconds += current_transition / 2
+
+    for level in range(battery_level + 1, 100):
+        transition = charge_model.get(str(level))
+
+        if transition is not None:
+            remaining_seconds += transition
+
+    if remaining_seconds == 0:
         return None
 
-    return _format_duration(remaining_seconds)
+    return _format_duration(round(remaining_seconds))

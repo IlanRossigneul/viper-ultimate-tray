@@ -8,9 +8,16 @@ from pathlib import Path
 from typing import Any
 
 
+ChargeEntry = dict[str, datetime | float | bool]
+
+FULL_CHARGE_LEVEL = 100
+EMPTY_CHARGE_LEVEL = 0
+
+
 LOG_DIR = Path(__file__).resolve().parent
 
 MODEL_FILE = LOG_DIR / "battery_charge_model.json"
+SAMPLES_FILE = LOG_DIR / "battery_charge_samples.json"
 
 SOURCES: dict[str, dict[str, str]] = {
     "wired": {"log_file": "battery_wired_charge_log_cleaned.csv"},
@@ -30,7 +37,7 @@ def print_usage() -> None:
 
 def load_charge_log(
     source: str,
-) -> list[dict[str, datetime | float | bool]]:
+) -> list[ChargeEntry]:
     log_file = LOG_DIR / SOURCES[source]["log_file"]
 
     if not log_file.exists():
@@ -53,9 +60,9 @@ def load_charge_log(
         ]
 
 
-def build_charge_model(
-    entries: list[dict[str, datetime | float | bool]],
-) -> dict[str, int]:
+def get_charging_entries(
+    entries: list[ChargeEntry],
+) -> list[ChargeEntry]:
     charging_entries = [
         entry
         for entry in entries
@@ -65,67 +72,104 @@ def build_charge_model(
     if not charging_entries:
         raise ValueError("No charging data found.")
 
-    full_charge_entry = next(
-        (
-            entry
-            for entry in charging_entries
-            if math.floor(entry["battery_percent"]) >= 100
-        ),
-        None,
-    )
+    return charging_entries
 
-    if full_charge_entry is None:
-        raise ValueError("No 100% charge sample found.")
 
-    full_charge_timestamp = full_charge_entry["timestamp"]
+def get_charge_level(
+    entry: ChargeEntry,
+) -> int | None:
+    battery_percent = entry["battery_percent"]
 
-    charge_levels: dict[int, list[datetime]] = {}
+    if entry["is_charging"] and battery_percent == EMPTY_CHARGE_LEVEL:
+        return None
+
+    return math.floor(battery_percent)
+
+
+def build_charge_transitions(
+    entries: list[ChargeEntry],
+) -> dict[str, int]:
+    charging_entries = get_charging_entries(entries)
+
+    level_durations: defaultdict[str, list[int]] = defaultdict(list)
+
+    previous_entry: ChargeEntry | None = None
+    previous_level: int | None = None
+    first_level: int | None = None
 
     for entry in charging_entries:
-        charge_level = math.floor(entry["battery_percent"])
+        current_level = get_charge_level(entry)
 
-        if charge_level >= 100:
-            break
+        if current_level is None:
+            continue
 
-        charge_levels.setdefault(charge_level, []).append(entry["timestamp"])
+        if previous_entry is None:
+            previous_entry = entry
+            previous_level = current_level
+            first_level = current_level
+            continue
 
-    model: dict[str, int] = {}
+        assert previous_level is not None
+        assert first_level is not None
 
-    for charge_level, timestamps in charge_levels.items():
-        first_timestamp = min(timestamps)
+        if current_level > previous_level:
+            duration = int(
+                (entry["timestamp"] - previous_entry["timestamp"]).total_seconds()
+            )
 
-        last_timestamp = max(timestamps)
+            is_initial_partial_transition = (
+                first_level != EMPTY_CHARGE_LEVEL
+                and previous_level == first_level
+            )
 
-        estimated_timestamp = first_timestamp + (last_timestamp - first_timestamp) / 2
+            if not is_initial_partial_transition:
+                level_durations[str(previous_level)].append(duration)
 
-        remaining_seconds = int((full_charge_timestamp - estimated_timestamp).total_seconds())
+            previous_entry = entry
+            previous_level = current_level
 
-        model[str(charge_level)] = remaining_seconds
+    if not level_durations:
+        raise ValueError("No charge level durations found.")
 
-    return model
+    return dict(
+        sorted(
+            {
+                level: sum(durations)
+                for level, durations in level_durations.items()
+            }.items(),
+            key=lambda item: int(item[0]),
+        )
+    )
+
+
+def load_samples() -> dict[str, Any]:
+    if not SAMPLES_FILE.exists():
+        return {"wired": [], "wireless": [],}
+
+    with SAMPLES_FILE.open(
+        "r",
+        encoding="utf-8",
+    ) as file:
+        return json.load(file)
 
 
 def load_model() -> dict[str, Any]:
     if not MODEL_FILE.exists():
         return {
-            "sources": {
-                "wired": {
-                    "samples": [],
-                    "average": {},
-                    "statistics": {
-                        "sample_count": 0,
-                        "last_updated": None,
-                    },
+            "wired": {
+                "statistics": {
+                    "sample_count": 0,
+                    "last_updated": None,
                 },
-                "wireless": {
-                    "samples": [],
-                    "average": {},
-                    "statistics": {
-                        "sample_count": 0,
-                        "last_updated": None,
-                    },
+                "average": {},
+            },
+            "wireless": {
+                "statistics": {
+                    "sample_count": 0,
+                    "last_updated": None,
                 },
-            }
+                "average": {},
+            },
         }
 
     with MODEL_FILE.open(
@@ -135,27 +179,43 @@ def load_model() -> dict[str, Any]:
         return json.load(file)
 
 
-def calculate_average_model(
+def calculate_average_transitions(
     samples: list[dict[str, Any]],
 ) -> dict[str, int]:
-    values: defaultdict[str, list[int]] = defaultdict(list)
+    level_durations: defaultdict[str, list[int]] = defaultdict(list)
 
     for sample in samples:
-        for level, seconds in sample["model"].items():
-            values[level].append(seconds)
+        for level, seconds in sample["transitions"].items():
+            level_durations[level].append(seconds)
 
-    average_model: dict[str, int] = {}
+    average_transitions: dict[str, int] = {}
 
-    for level, durations in values.items():
-        average_model[level] = round(sum(durations) / len(durations))
+    for level, durations in level_durations.items():
+        average_transitions[level] = round(sum(durations) / len(durations))
 
-    return dict(sorted(average_model.items(), key=lambda item: int(item[0])))
+    return dict(sorted(average_transitions.items(), key=lambda item: int(item[0])))
 
 
 def save_model(
     data: dict[str, Any],
 ) -> None:
     with MODEL_FILE.open(
+        "w",
+        encoding="utf-8",
+    ) as file:
+        json.dump(
+            data,
+            file,
+            indent=4,
+        )
+
+        file.write("\n")
+
+
+def save_samples(
+    data: dict[str, Any],
+) -> None:
+    with SAMPLES_FILE.open(
         "w",
         encoding="utf-8",
     ) as file:
@@ -184,37 +244,35 @@ def format_duration(
 def analyze_source(
     source: str,
 ) -> None:
-    print(
-        f"\nAnalyze {source}...",
-        flush=True,
-    )
+    print(f"\nAnalyze {source}...", flush=True)
 
     entries = load_charge_log(source)
 
-    model = build_charge_model(entries)
+    transitions = build_charge_transitions(entries)
 
-    data = load_model()
+    samples = load_samples()
+    model_data = load_model()
 
     now = datetime.now().astimezone().isoformat(timespec="seconds")
 
-    source_data = data["sources"][source]
+    samples[source].append({"created_at": now, "transitions": transitions,})
 
-    source_data["samples"].append({"created_at": now, "model": model})
+    model_data[source]["average"] = calculate_average_transitions(samples[source])
 
-    source_data["average"] = calculate_average_model(source_data["samples"])
+    model_data[source]["statistics"]["sample_count"] = len(samples[source])
 
-    source_data["statistics"]["sample_count"] = len(source_data["samples"])
+    model_data[source]["statistics"]["last_updated"] = now
 
-    source_data["statistics"]["last_updated"] = now
+    save_samples(samples)
 
-    save_model(data)
+    save_model(model_data)
 
-    print(f"Sample added: {source_data['statistics']['sample_count']}", flush=True)
+    print(f"Sample added: {model_data[source]['statistics']['sample_count']}", flush=True)
 
     print(f"Average model {source}:", flush=True)
 
-    for level, seconds in source_data["average"].items():
-        print(f"{level:>2} % → 100 %: {format_duration(seconds)}")
+    for level, seconds in model_data[source]["average"].items():
+        print(f"{level:>2} % : {format_duration(seconds)}")
 
 
 def main() -> None:
