@@ -1,5 +1,7 @@
 import csv
+import signal
 import time
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -11,9 +13,21 @@ class BatteryLogger:
         self,
         log_dir: Path,
         interval_seconds: int = 1,
+        verbose: bool = False,
     ):
         self.log_dir = log_dir
+
         self.interval_seconds = interval_seconds
+
+        self.verbose = verbose
+
+        self.running = True
+
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message, flush=True)
+
 
     def _find_viper(
         self,
@@ -28,6 +42,7 @@ class BatteryLogger:
             None,
         )
 
+
     def _get_log_file(
         self,
         mouse,
@@ -39,6 +54,7 @@ class BatteryLogger:
         )
 
         return self.log_dir / filename
+
 
     def _initialize_log_file(
         self,
@@ -52,7 +68,18 @@ class BatteryLogger:
             writer = csv.writer(file)
             writer.writerow(["timestamp", "battery_percent", "is_charging"])
 
+
+    def _request_stop(self, signum, frame) -> None:
+        if self.running:
+            self._log("\nStopping battery logger...")
+            self.running = False
+
+
     def run(self) -> None:
+        signal.signal(signal.SIGINT, self._request_stop)
+
+        signal.signal(signal.SIGTERM, self._request_stop)
+
         device_manager = DeviceManager()
 
         mouse = self._find_viper(device_manager)
@@ -65,13 +92,13 @@ class BatteryLogger:
 
         self._initialize_log_file(log_file)
 
-        print(f"Detected mode: {mouse._name}", flush=True)
+        self._log(f"Detected mode: {mouse._name}")
 
-        print(f"Log file: {log_file.name}", flush=True)
+        self._log(f"Log file: {log_file.name}")
 
-        print(f"Logging every {self.interval_seconds} second(s).", flush=True)
+        self._log(f"Logging every {self.interval_seconds} second(s).")
 
-        while True:
+        while self.running:
             try:
                 battery = mouse._dbus_interfaces["power"].getBattery()
 
@@ -94,11 +121,17 @@ class BatteryLogger:
                         ]
                     )
 
-            except Exception as error:
-                print(f"Unable to read mouse state: {error}", flush=True)
+            except Exception:
+                traceback.print_exc()
 
             time.sleep(self.interval_seconds)
 
+        self._log("Battery logger stopped.")
+
+
+def main() -> None:
+    BatteryLogger(Path(__file__).resolve().parent, verbose=True).run()
+
 
 if __name__ == "__main__":
-    BatteryLogger(Path(__file__).resolve().parent).run()
+    main()
