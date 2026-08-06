@@ -2,6 +2,7 @@ from pathlib import Path
 from threading import Thread
 
 from .battery_logger import BatteryLogger
+from .clean_battery_log import BatteryLogCleaner
 
 
 class LogManager:
@@ -11,9 +12,18 @@ class LogManager:
         self.logger: BatteryLogger | None = None
         self.logger_thread: Thread | None = None
 
+        self.cleaner: BatteryLogCleaner = BatteryLogCleaner(self.log_dir, verbose=False)
+
 
     def is_logger_running(self) -> bool:
         return self.logger_thread is not None and self.logger_thread.is_alive()
+
+
+    def clean_battery_logs(self) -> None:
+        try:
+            self.cleaner.clean()
+        except Exception as error:
+            print(f"Failed to clean battery logs: {error}", flush=True)
 
 
     def start_logger(self) -> bool:
@@ -43,5 +53,7 @@ class LogManager:
         self.logger = None
 
         self.logger_thread = None
+
+        self.clean_battery_logs()
 
         return True

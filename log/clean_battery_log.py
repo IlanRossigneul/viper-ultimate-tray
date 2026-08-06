@@ -1,30 +1,33 @@
 import csv
-import sys
 from pathlib import Path
 
 
 class BatteryLogCleaner:
-    SOURCES: dict[str, str] = {
-        "wired": "battery_wired_charge_log.csv",
-        "wireless": "battery_wireless_charge_log.csv",
-    }
+    LOG_FILES: tuple[str, str] = (
+        "battery_wired_charge_log.csv",
+        "battery_wireless_charge_log.csv",
+    )
 
     def __init__(
         self,
         log_dir: Path,
+        verbose: bool = False,
     ):
         self.log_dir = log_dir
 
-    def clean(
-        self,
-        source: str,
-    ) -> Path:
-        if source not in self.SOURCES:
-            raise ValueError(f"Invalid source: {source}")
+        self.verbose = verbose
 
-        input_file = self.log_dir / self.SOURCES[source]
 
-        output_file = self.log_dir / f"battery_{source}_charge_log_cleaned.csv"
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message, flush=True)
+
+
+    def _clean_file(self, input_file: Path) -> Path | None:
+        if not input_file.exists():
+            return None
+
+        output_file = input_file.with_name(input_file.stem + "_cleaned.csv")
 
         with input_file.open(
             "r",
@@ -34,7 +37,8 @@ class BatteryLogCleaner:
             rows = list(csv.DictReader(file))
 
         if not rows:
-            raise ValueError("File is empty.")
+            self._log(f"{input_file.name}: empty file.")
+            return None
 
         cleaned_rows: list[dict[str, str]] = []
 
@@ -63,27 +67,30 @@ class BatteryLogCleaner:
             writer.writeheader()
             writer.writerows(cleaned_rows)
 
-        print(f"{len(rows)} original rows.")
+        self._log(f"{input_file.name}: {len(rows)} original rows.")
 
-        print(f"{len(cleaned_rows)} preserved rows.")
+        self._log(f"{input_file.name}: {len(cleaned_rows)} preserved rows.")
 
-        print(f"Result: {output_file.name}")
+        self._log(f"{output_file.name}: created.")
 
         return output_file
 
 
+    def clean(self) -> None:
+        cleaned_files = 0
+
+        for filename in self.LOG_FILES:
+            input_file = self.log_dir / filename
+
+            if self._clean_file(input_file) is not None:
+                cleaned_files += 1
+
+        if cleaned_files == 0:
+            self._log("No battery log found.")
+
+
 def main() -> None:
-    if len(sys.argv) != 2:
-        print(
-            "Usage:\n"
-            "    python clean_battery_log.py wired\n"
-            "    python clean_battery_log.py wireless"
-        )
-        sys.exit(1)
-
-    source = sys.argv[1].lower()
-
-    BatteryLogCleaner(Path(__file__).resolve().parent).clean(source)
+    BatteryLogCleaner(Path(__file__).resolve().parent, verbose=True).clean()
 
 
 if __name__ == "__main__":
