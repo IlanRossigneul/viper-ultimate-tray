@@ -80,10 +80,6 @@ class BatteryLogger:
 
 
     def run(self) -> None:
-        signal.signal(signal.SIGINT, self._request_stop)
-
-        signal.signal(signal.SIGTERM, self._request_stop)
-
         device_manager = DeviceManager()
 
         mouse = self._find_viper(device_manager)
@@ -134,7 +130,13 @@ class BatteryLogger:
 
 
 def main() -> None:
-    BatteryLogger(Path(__file__).resolve().parent, verbose=True).run()
+    logger = BatteryLogger(Path(__file__).resolve().parent, verbose=True)
+
+    signal.signal(signal.SIGINT, logger._request_stop)
+
+    signal.signal(signal.SIGTERM, logger._request_stop)
+
+    logger.run()
 
 
 if __name__ == "__main__":

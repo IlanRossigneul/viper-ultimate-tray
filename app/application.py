@@ -37,6 +37,7 @@ class Application:
         self.status_view: StatusView | None = None
         self.poller: MousePoller | None = None
         self.log_manager: LogManager | None = None
+        self.menu_widgets: MenuWidgets | None = None
 
         self.icon_dir = ICON_DIR
         self.log_dir = LOG_DIR
@@ -65,18 +66,52 @@ class Application:
             stage_items=widgets.stage_items,
         )
 
+
+    def _update_logger_menu_state(self) -> None:
+        if self.log_manager is None or self.menu_widgets is None:
+            return
+
+        running = self.log_manager.is_logger_running()
+
+        self.menu_widgets.battery_logger_start_action.set_sensitive(not running)
+        self.menu_widgets.battery_logger_stop_action.set_sensitive(running)
+
+
+    def _start_battery_logger(self) -> None:
+        if self.log_manager is None:
+            return
+
+        if self.log_manager.start_logger():
+            print("Battery logger started.", flush=True)
+
+        self._update_logger_menu_state()
+
+
+    def _stop_battery_logger(self) -> None:
+        if self.log_manager is None:
+            return
+
+        if self.log_manager.stop_logger():
+            print("Battery logger stopped.", flush=True)
+
+        self._update_logger_menu_state()
+
+
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
             print("Failed to change the DPI stage.", flush=True)
 
+
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
+
 
     def _handle_connected(
         self,
         state: MouseState,
     ) -> None:
         self.status_view.show_connected(state)
+
 
     def run(self) -> int:
         charge_models = load_charge_models()
@@ -91,21 +126,33 @@ class Application:
 
         self.log_manager = LogManager(self.log_dir)
 
-        widgets = create_menu(
+        self.menu_widgets = create_menu(
             self.menu_icon_dir,
             self.menu_battery_icon_dir,
             self.menu_log_icon_dir,
             state.device_name,
         )
 
+        self.menu_widgets.battery_logger_start_action.connect(
+            "activate",
+            lambda *_: self._start_battery_logger(),
+        )
+
+        self.menu_widgets.battery_logger_stop_action.connect(
+            "activate",
+            lambda *_: self._stop_battery_logger(),
+        )
+
+        self._update_logger_menu_state()
+
         self.mouse_controller = MouseController()
 
-        menu = widgets.menu
+        menu = self.menu_widgets.menu
 
-        stage_menu = widgets.stage_menu
-        stage_items = widgets.stage_items
+        stage_menu = self.menu_widgets.stage_menu
+        stage_items = self.menu_widgets.stage_items
 
-        self.status_view = self._create_status_view(widgets, charge_models)
+        self.status_view = self._create_status_view(self.menu_widgets, charge_models)
 
         stage_items.extend(
             create_dpi_stage_menu(
