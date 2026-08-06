@@ -23,6 +23,10 @@ class MenuWidgets:
     stage_menu: Gtk.Menu
     stage_items: list[Gtk.RadioMenuItem]
 
+    logs_item: Gtk.MenuItem
+    battery_logger_start_action: Gtk.MenuItem
+    battery_logger_stop_action: Gtk.MenuItem
+
     polychromatic_action: Gtk.MenuItem
     input_remapper_action: Gtk.MenuItem
     quit_action: Gtk.MenuItem
@@ -78,6 +82,7 @@ def add_separator(
 def create_menu(
     menu_icon_dir: Path,
     menu_battery_icon_dir: Path,
+    menu_log_icon_dir: Path,
     device_name: str,
 ) -> MenuWidgets:
     menu = Gtk.Menu()
@@ -99,6 +104,16 @@ def create_menu(
     stage_item.set_submenu(stage_menu)
 
     stage_items: list[Gtk.RadioMenuItem] = []
+
+    logs_item = create_menu_item(menu_log_icon_dir / "logs.svg", "Journaux")
+
+    logs_menu = Gtk.Menu()
+
+    logs_item.set_submenu(logs_menu)
+
+    battery_logger_start_action = create_menu_item(menu_log_icon_dir / "start.svg", "Démarrer")
+
+    battery_logger_stop_action = create_menu_item(menu_log_icon_dir / "stop.svg", "Arrêter")
 
     polychromatic_action = create_menu_item(
         menu_icon_dir / "polychromatic.svg",
@@ -154,6 +169,13 @@ def create_menu(
 
     add_separator(menu)
 
+    logs_menu.append(battery_logger_start_action)
+    logs_menu.append(battery_logger_stop_action)
+
+    menu.append(logs_item)
+
+    add_separator(menu)
+
     menu.append(polychromatic_action)
     menu.append(input_remapper_action)
 
@@ -171,6 +193,9 @@ def create_menu(
         low_battery_item=low_battery_item,
         stage_menu=stage_menu,
         stage_items=stage_items,
+        logs_item=logs_item,
+        battery_logger_start_action=battery_logger_start_action,
+        battery_logger_stop_action=battery_logger_stop_action,
         polychromatic_action=polychromatic_action,
         input_remapper_action=input_remapper_action,
         quit_action=quit_action,

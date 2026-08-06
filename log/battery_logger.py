@@ -69,10 +69,14 @@ class BatteryLogger:
             writer.writerow(["timestamp", "battery_percent", "is_charging"])
 
 
+    def stop(self) -> None:
+        self.running = False
+
+
     def _request_stop(self, signum, frame) -> None:
         if self.running:
             self._log("\nStopping battery logger...")
-            self.running = False
+            self.stop()
 
 
     def run(self) -> None:

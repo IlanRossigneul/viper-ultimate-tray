@@ -6,10 +6,14 @@ from battery.models import load_charge_models
 
 from config.paths import (
     ICON_DIR,
+    LOG_DIR,
     MENU_BATTERY_ICON_DIR,
+    MENU_LOG_ICON_DIR,
     MENU_ICON_DIR,
     TRAY_ICON_DIR,
 )
+
+from log.manager import LogManager
 
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
@@ -32,10 +36,13 @@ class Application:
         self.mouse_controller: MouseController | None = None
         self.status_view: StatusView | None = None
         self.poller: MousePoller | None = None
+        self.log_manager: LogManager | None = None
 
         self.icon_dir = ICON_DIR
+        self.log_dir = LOG_DIR
         self.menu_icon_dir = MENU_ICON_DIR
         self.menu_battery_icon_dir = MENU_BATTERY_ICON_DIR
+        self.menu_log_icon_dir = MENU_LOG_ICON_DIR
         self.tray_icon_dir = TRAY_ICON_DIR
 
     def _create_status_view(
@@ -82,9 +89,12 @@ class Application:
 
         self.indicator = create_indicator(self.icon_dir)
 
+        self.log_manager = LogManager(self.log_dir)
+
         widgets = create_menu(
             self.menu_icon_dir,
             self.menu_battery_icon_dir,
+            self.menu_log_icon_dir,
             state.device_name,
         )
 
