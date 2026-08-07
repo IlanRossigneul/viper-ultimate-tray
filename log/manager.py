@@ -5,6 +5,7 @@ from .battery_logger import BatteryLogger
 from .clean_battery_log import BatteryLogCleaner
 from .analyze_charge import ChargeAnalyzer
 from .archive_battery_log import BatteryLogArchiver
+from .delete_battery_log import BatteryLogDeleter
 
 
 class LogManager:
@@ -19,6 +20,8 @@ class LogManager:
         self.analyzer: ChargeAnalyzer = ChargeAnalyzer(self.log_dir, verbose=False)
 
         self.archiver: BatteryLogArchiver = BatteryLogArchiver(self.log_dir, verbose=False)
+
+        self.deleter: BatteryLogDeleter = BatteryLogDeleter(self.log_dir, verbose=False)
 
 
     def is_logger_running(self) -> bool:
@@ -52,6 +55,15 @@ class LogManager:
             return False
 
 
+    def delete_battery_logs(self) -> bool:
+        try:
+            self.deleter.delete()
+            return True
+        except Exception as error:
+            print(f"Failed to delete battery logs: {error}", flush=True)
+            return False
+
+
     def _process_battery_logs(self) -> None:
         if not self.clean_battery_logs():
             return
@@ -60,6 +72,9 @@ class LogManager:
             return
 
         if not self.archive_battery_logs():
+            return
+
+        if not self.delete_battery_logs():
             return
 
 
