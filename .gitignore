@@ -34,5 +34,8 @@ log/battery_charge_*.json
 log/battery_*_charge_log*.csv
 log/battery_*_charge_log_cleaned*.csv
 
+# Archive battery logs
+log/archive/
+
 # Local logs (si tu en ajoutes plus tard)
 *.log

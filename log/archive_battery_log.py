@@ -1,0 +1,73 @@
+import shutil
+from datetime import datetime
+from pathlib import Path
+
+
+class BatteryLogArchiver:
+    LOG_FILES: tuple[str, ...] = (
+        "battery_wired_charge_log.csv",
+        "battery_wireless_charge_log.csv",
+    )
+
+    ARCHIVE_DIRECTORY: str = "archive"
+
+
+    def __init__(
+        self,
+        log_dir: Path,
+        verbose: bool = False,
+    ):
+        self.log_dir = log_dir
+
+        self.verbose = verbose
+
+
+    def _log(self, message: str) -> None:
+        if self.verbose:
+            print(message, flush=True)
+
+
+    def _create_archive_directory(self) -> Path:
+        archive_directory = (
+            self.log_dir
+            / self.ARCHIVE_DIRECTORY
+            / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        )
+
+        archive_directory.mkdir(parents=True, exist_ok=True)
+
+        return archive_directory
+
+
+    def archive(self) -> None:
+        archive_directory: Path | None = None
+
+        archived_files = 0
+
+        for filename in self.LOG_FILES:
+            input_file = self.log_dir / filename
+
+            if not input_file.exists():
+                continue
+
+            if archive_directory is None:
+                archive_directory = self._create_archive_directory()
+
+            output_file = archive_directory / filename
+
+            shutil.copy2(input_file, output_file)
+
+            archived_files += 1
+
+            self._log(f"{filename}: archived.")
+
+        if archived_files == 0:
+            self._log("No battery log found.")
+
+
+def main() -> None:
+    BatteryLogArchiver(Path(__file__).resolve().parent, verbose=True).archive()
+
+
+if __name__ == "__main__":
+    main()
