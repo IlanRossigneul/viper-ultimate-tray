@@ -49,7 +49,7 @@ class Application:
     def _create_status_view(
         self,
         widgets: MenuWidgets,
-        charge_models: list[dict[str, Any]],
+        charge_models: dict[str, dict[str, Any]],
     ) -> StatusView:
         return StatusView(
             indicator=self.indicator,

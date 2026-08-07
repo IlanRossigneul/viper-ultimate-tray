@@ -3,6 +3,7 @@ from threading import Thread
 
 from .battery_logger import BatteryLogger
 from .clean_battery_log import BatteryLogCleaner
+from .analyze_charge import ChargeAnalyzer
 
 
 class LogManager:
@@ -14,6 +15,8 @@ class LogManager:
 
         self.cleaner: BatteryLogCleaner = BatteryLogCleaner(self.log_dir, verbose=False)
 
+        self.analyzer: ChargeAnalyzer = ChargeAnalyzer(self.log_dir, verbose=False)
+
 
     def is_logger_running(self) -> bool:
         return self.logger_thread is not None and self.logger_thread.is_alive()
@@ -24,6 +27,13 @@ class LogManager:
             self.cleaner.clean()
         except Exception as error:
             print(f"Failed to clean battery logs: {error}", flush=True)
+
+
+    def analyze_charge_logs(self) -> None:
+        try:
+            self.analyzer.analyze()
+        except Exception as error:
+            print(f"Failed to analyze battery logs: {error}", flush=True)
 
 
     def start_logger(self) -> bool:
@@ -54,6 +64,10 @@ class LogManager:
 
         self.logger_thread = None
 
+        # Clean raw logs before analysis to generate a normalized dataset.
         self.clean_battery_logs()
+
+        # Update charge model with the latest charging session.
+        self.analyze_charge_logs()
 
         return True

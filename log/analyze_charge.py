@@ -1,7 +1,6 @@
 import csv
 import json
 import math
-import sys
 import traceback
 from collections import defaultdict
 from datetime import datetime
@@ -15,10 +14,10 @@ EMPTY_CHARGE_LEVEL = 0
 
 
 class ChargeAnalyzer:
-    LOG_FILES: dict[str, str] = {
-        "wired": "battery_wired_charge_log_cleaned.csv",
-        "wireless": "battery_wireless_charge_log_cleaned.csv",
-    }
+    LOG_FILES: tuple[tuple[str, Path], ...] = (
+        ("wired", Path("battery_wired_charge_log_cleaned.csv")),
+        ("wireless", Path("battery_wireless_charge_log_cleaned.csv")),
+    )
 
     def __init__(
         self,
@@ -41,14 +40,12 @@ class ChargeAnalyzer:
 
     def _load_charge_log(
         self,
-        mode: str,
+        input_file: Path,
     ) -> list[ChargeEntry]:
-        log_file = self.log_dir / self.LOG_FILES[mode]
+        if not input_file.exists():
+            raise FileNotFoundError(f"File not found: {input_file.name}")
 
-        if not log_file.exists():
-            raise FileNotFoundError(f"File not found: {log_file.name}")
-
-        with log_file.open(
+        with input_file.open(
             "r",
             newline="",
             encoding="utf-8",
@@ -76,7 +73,7 @@ class ChargeAnalyzer:
         ]
 
         if not charging_entries:
-            raise ValueError("No charging data found.")
+            raise ValueError("No charging session found.")
 
         return charging_entries
 
@@ -272,19 +269,22 @@ class ChargeAnalyzer:
         return f"{minutes} min {seconds:02d} s"
 
 
-    def analyze_mode(
+    def _analyze_mode(
         self,
         mode: str,
+        input_file: Path,
+        samples: dict[str, Any],
+        model: dict[str, Any],
     ) -> None:
         self._log(f"\nAnalyze {mode}...")
 
-        entries = self._load_charge_log(mode)
+        entries = self._load_charge_log(input_file)
 
-        transitions = self._build_charge_transitions(entries)
-
-        samples = self._load_samples()
-
-        model = self._load_model()
+        try:
+            transitions = self._build_charge_transitions(entries)
+        except ValueError as error:
+            self._log(f"{mode}: {error}")
+            return
 
         if self._sample_already_exists(samples[mode], transitions):
             self._log("Sample already exists.")
@@ -300,10 +300,6 @@ class ChargeAnalyzer:
 
         model[mode]["statistics"]["last_updated"] = now
 
-        self._save_samples(samples)
-
-        self._save_model(model)
-
         self._log(f"Sample added: {model[mode]['statistics']['sample_count']}")
 
         self._log(f"Average model {mode}:")
@@ -312,43 +308,42 @@ class ChargeAnalyzer:
             self._log(f"{level:>2} % : {self._format_duration(seconds)}")
 
 
-    def analyze_all(self) -> None:
-        for mode in self.LOG_FILES:
-            self.analyze_mode(mode)
+    def analyze(self) -> None:
+        samples = self._load_samples()
+        model = self._load_model()
 
+        analyzed = False
 
-def print_usage() -> None:
-    print(
-        "Usage:\n"
-        "    python analyze_charge.py\n"
-        "    python analyze_charge.py wired\n"
-        "    python analyze_charge.py wireless",
-        flush=True,
-    )
+        for mode, filename in self.LOG_FILES:
+            input_file = self.log_dir / filename
+
+            if not input_file.exists():
+                continue
+
+            self._analyze_mode(
+                mode,
+                input_file,
+                samples,
+                model,
+            )
+
+            analyzed = True
+
+        if not analyzed:
+            self._save_samples(samples)
+            self._save_model(model)
+
+            self._log("No cleaned battery log found.")
+
+            return
+
+        self._save_samples(samples)
+        self._save_model(model)
 
 
 def main() -> None:
     try:
-        args = sys.argv[1:]
-
-        analyzer = ChargeAnalyzer(Path(__file__).resolve().parent, verbose=True)
-
-        if len(args) > 1:
-            print_usage()
-            return
-
-        if args:
-            mode = args[0]
-
-            if mode not in analyzer.LOG_FILES:
-                print_usage()
-                return
-
-            analyzer.analyze_mode(mode)
-            return
-
-        analyzer.analyze_all()
-
+        ChargeAnalyzer(Path(__file__).resolve().parent, verbose=True).analyze()
     except Exception:
         traceback.print_exc()
 
