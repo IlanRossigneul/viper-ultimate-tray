@@ -25,25 +25,42 @@ class LogManager:
         return self.logger_thread is not None and self.logger_thread.is_alive()
 
 
-    def clean_battery_logs(self) -> None:
+    def clean_battery_logs(self) -> bool:
         try:
             self.cleaner.clean()
+            return True
         except Exception as error:
             print(f"Failed to clean battery logs: {error}", flush=True)
+            return False
 
 
-    def analyze_charge_logs(self) -> None:
+    def analyze_charge_logs(self) -> bool:
         try:
             self.analyzer.analyze()
+            return True
         except Exception as error:
             print(f"Failed to analyze battery logs: {error}", flush=True)
+            return False
 
 
-    def archive_battery_logs(self) -> None:
+    def archive_battery_logs(self) -> bool:
         try:
             self.archiver.archive()
+            return True
         except Exception as error:
             print(f"Failed to archive battery logs: {error}", flush=True)
+            return False
+
+
+    def _process_battery_logs(self) -> None:
+        if not self.clean_battery_logs():
+            return
+
+        if not self.analyze_charge_logs():
+            return
+
+        if not self.archive_battery_logs():
+            return
 
 
     def start_logger(self) -> bool:
@@ -74,13 +91,6 @@ class LogManager:
 
         self.logger_thread = None
 
-        # Clean raw logs before analysis to generate a normalized dataset.
-        self.clean_battery_logs()
-
-        # Update charge model with the latest charging session.
-        self.analyze_charge_logs()
-
-        # Archive validated raw logs.
-        self.archive_battery_logs()
+        self._process_battery_logs()
 
         return True
