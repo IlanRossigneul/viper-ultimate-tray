@@ -17,7 +17,7 @@ class StatusView:
     def __init__(
         self,
         indicator: AppIndicator3.Indicator,
-        icon_dir: Path,
+        menu_icon_dir: Path,
         tray_icon_dir: Path,
         menu_battery_icon_dir: Path,
         charge_models: dict[str, dict[str, Any]],
@@ -31,7 +31,7 @@ class StatusView:
     ):
         self.indicator = indicator
 
-        self.icon_dir = icon_dir
+        self.menu_icon_dir = menu_icon_dir
         self.tray_icon_dir = tray_icon_dir
         self.menu_battery_icon_dir = menu_battery_icon_dir
 
@@ -47,7 +47,7 @@ class StatusView:
         self.stage_items = stage_items
 
     def show_disconnected(self) -> None:
-        self.indicator.set_icon_full(str(self.icon_dir / "mouse.svg"), "Razer Viper Ultimate")
+        self.indicator.set_icon_full(str(self.menu_icon_dir / "mouse.svg"), "Razer Viper Ultimate")
 
         self.name_item.label_widget.set_text("Razer Viper Ultimate déconnectée")
 
@@ -82,6 +82,18 @@ class StatusView:
         battery = state.battery
         is_charging = state.charging
 
+        if battery is None:
+            self.indicator.set_icon_full(
+                str(self.menu_icon_dir / "mouse.svg"),
+                f"{state.device_name} — Batterie indisponible",
+            )
+
+            self.name_item.label_widget.set_text(state.device_name)
+
+            self.battery_item.label_widget.set_text("Batterie : —")
+
+            return
+
         self.indicator.set_icon_full(
             str(
                 self.tray_icon_dir
@@ -90,7 +102,7 @@ class StatusView:
                     is_charging,
                 )
             ),
-            f"Razer Viper Ultimate — {battery:.0f} %",
+            f"{state.device_name} — {battery:.0f} %",
         )
 
         for item in [

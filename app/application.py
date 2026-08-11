@@ -24,6 +24,8 @@ from ui.menu import MenuWidgets, create_menu
 from ui.status_view import StatusView
 from ui.tray_view import create_indicator
 
+from notifications.mouse_notifications import MouseNotificationManager
+
 gi.require_version("Gtk", "3.0")
 
 from gi.repository import AppIndicator3, Gtk
@@ -38,6 +40,7 @@ class Application:
         self.poller: MousePoller | None = None
         self.log_manager: LogManager | None = None
         self.menu_widgets: MenuWidgets | None = None
+        self.notification_manager: MouseNotificationManager | None = None
 
         self.icon_dir = ICON_DIR
         self.log_dir = LOG_DIR
@@ -53,7 +56,7 @@ class Application:
     ) -> StatusView:
         return StatusView(
             indicator=self.indicator,
-            icon_dir=self.icon_dir,
+            menu_icon_dir=self.menu_icon_dir,
             tray_icon_dir=self.tray_icon_dir,
             menu_battery_icon_dir=self.menu_battery_icon_dir,
             charge_models=charge_models,
@@ -105,12 +108,15 @@ class Application:
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
 
+        if self.notification_manager is not None:
+            self.notification_manager.reset()
 
-    def _handle_connected(
-        self,
-        state: MouseState,
-    ) -> None:
+
+    def _handle_connected(self, state: MouseState) -> None:
         self.status_view.show_connected(state)
+
+        if self.notification_manager is not None:
+            self.notification_manager.update(state)
 
 
     def run(self) -> int:
@@ -125,6 +131,8 @@ class Application:
         self.indicator = create_indicator(self.icon_dir)
 
         self.log_manager = LogManager(self.log_dir)
+
+        self.notification_manager = MouseNotificationManager()
 
         self.menu_widgets = create_menu(
             self.menu_icon_dir,

@@ -81,6 +81,11 @@ def get_mouse_state() -> MouseState:
         battery = mouse.battery_level
         charging = mouse.is_charging
 
+        if battery == -1.0:
+            battery = None
+        elif battery == 0.0:
+            battery = 0 if charging else None
+
         dpi_x, _ = mouse.dpi
 
         active_stage, stages = mouse.dpi_stages
