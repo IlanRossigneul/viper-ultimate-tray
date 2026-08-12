@@ -2,81 +2,45 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-import gi
-
-gi.require_version("Gtk", "3.0")
-
-from gi.repository import Gtk
+from PySide6.QtGui import QAction, QIcon
+from PySide6.QtWidgets import QMenu
 
 
 @dataclass(slots=True)
 class MenuWidgets:
-    menu: Gtk.Menu
+    menu: QMenu
 
-    name_item: Gtk.MenuItem
-    battery_item: Gtk.MenuItem
-    dpi_item: Gtk.MenuItem
-    stage_item: Gtk.MenuItem
-    idle_item: Gtk.MenuItem
-    low_battery_item: Gtk.MenuItem
+    name_item: QAction
+    battery_item: QAction
+    dpi_item: QAction
+    stage_item: QAction
+    idle_item: QAction
+    low_battery_item: QAction
 
-    stage_menu: Gtk.Menu
-    stage_items: list[Gtk.RadioMenuItem]
+    stage_menu: QMenu
+    stage_items: list[QAction]
 
-    logs_item: Gtk.MenuItem
-    battery_logger_start_action: Gtk.MenuItem
-    battery_logger_stop_action: Gtk.MenuItem
+    logs_item: QAction
+    battery_logger_start_action: QAction
+    battery_logger_stop_action: QAction
 
-    polychromatic_action: Gtk.MenuItem
-    input_remapper_action: Gtk.MenuItem
-    quit_action: Gtk.MenuItem
+    polychromatic_action: QAction
+    input_remapper_action: QAction
 
-def create_menu_item(
-    icon_path: Path | None = None,
-    text: str = "",
-) -> Gtk.MenuItem:
-    item = Gtk.MenuItem()
 
-    box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-
-    image = None
+def create_menu_item(icon_path: Path | None = None, text: str = "") -> QAction:
+    action = QAction()
 
     if icon_path is not None:
-        image = Gtk.Image.new_from_file(str(icon_path))
+        action.setIcon(QIcon(str(icon_path)))
 
-        box.pack_start(
-            image,
-            False,
-            False,
-            0,
-        )
+    action.setText(text)
 
-    label = Gtk.Label(label=text, xalign=0)
-
-    box.pack_start(
-        label,
-        True,
-        True,
-        0,
-    )
-
-    item.add(box)
-
-    item.label_widget = label
-    item.image_widget = image
-
-    item.show_all()
-
-    return item
+    return action
 
 
-def add_separator(
-    menu: Gtk.Menu,
-) -> None:
-    separator = Gtk.SeparatorMenuItem()
-    separator.show()
-
-    menu.append(separator)
+def add_separator(menu: QMenu) -> None:
+    menu.addSeparator()
 
 
 def create_menu(
@@ -85,7 +49,7 @@ def create_menu(
     menu_log_icon_dir: Path,
     device_name: str,
 ) -> MenuWidgets:
-    menu = Gtk.Menu()
+    menu = QMenu()
 
     name_item = create_menu_item(menu_icon_dir / "mouse.svg", device_name)
 
@@ -99,89 +63,75 @@ def create_menu(
 
     low_battery_item = create_menu_item(menu_icon_dir / "low-conso.svg")
 
-    stage_menu = Gtk.Menu()
+    stage_menu = QMenu()
 
-    stage_item.set_submenu(stage_menu)
+    stage_item.setMenu(stage_menu)
 
-    stage_items: list[Gtk.RadioMenuItem] = []
+    stage_items: list[QAction] = []
 
     logs_item = create_menu_item(menu_log_icon_dir / "logs.svg", "Journaux")
 
-    logs_menu = Gtk.Menu()
+    logs_menu = QMenu()
 
-    logs_item.set_submenu(logs_menu)
+    logs_item.setMenu(logs_menu)
 
-    battery_logger_start_action = create_menu_item(menu_log_icon_dir / "start.svg", "Démarrer")
-
-    battery_logger_stop_action = create_menu_item(menu_log_icon_dir / "stop.svg", "Arrêter")
-
-    polychromatic_action = create_menu_item(
-        menu_icon_dir / "polychromatic.svg",
-        "Ouvrir Polychromatic",
+    battery_logger_start_action = create_menu_item(
+        menu_log_icon_dir / "start.svg", "Démarrer",
     )
 
-    polychromatic_action.connect(
-        "activate",
-        lambda *_:
+    battery_logger_stop_action = create_menu_item(
+        menu_log_icon_dir / "stop.svg", "Arrêter",
+    )
+
+    polychromatic_action = create_menu_item(
+        menu_icon_dir / "polychromatic.svg", "Ouvrir Polychromatic",
+    )
+
+    polychromatic_action.triggered.connect(
+        lambda:
             subprocess.Popen(
-                ["polychromatic-controller"],
-                start_new_session=True,
+                ["polychromatic-controller"], start_new_session=True,
             ),
     )
 
     input_remapper_action = create_menu_item(
-        menu_icon_dir / "input-remapper.svg",
-        "Ouvrir Input Remapper",
+        menu_icon_dir / "input-remapper.svg", "Ouvrir Input Remapper",
     )
 
-    input_remapper_action.connect(
-        "activate",
-        lambda *_:
+    input_remapper_action.triggered.connect(
+        lambda:
             subprocess.Popen(
-                ["input-remapper-gtk"],
-                start_new_session=True,
+                ["input-remapper-gtk"], start_new_session=True,
             ),
     )
 
-    quit_action = create_menu_item(text="Quitter")
-
-    quit_action.connect(
-        "activate",
-        lambda *_:
-            Gtk.main_quit(),
-    )
-
-    menu.append(name_item)
+    menu.addAction(name_item)
 
     add_separator(menu)
 
-    menu.append(battery_item)
+    menu.addAction(battery_item)
 
     add_separator(menu)
 
-    menu.append(dpi_item)
-    menu.append(stage_item)
+    menu.addAction(dpi_item)
+    menu.addAction(stage_item)
 
     add_separator(menu)
 
-    menu.append(idle_item)
-    menu.append(low_battery_item)
+    menu.addAction(idle_item)
+    menu.addAction(low_battery_item)
 
     add_separator(menu)
 
-    logs_menu.append(battery_logger_start_action)
-    logs_menu.append(battery_logger_stop_action)
+    logs_menu.addAction(battery_logger_start_action)
+    logs_menu.addAction(battery_logger_stop_action)
 
-    menu.append(logs_item)
-
-    add_separator(menu)
-
-    menu.append(polychromatic_action)
-    menu.append(input_remapper_action)
+    menu.addAction(logs_item)
 
     add_separator(menu)
 
-    menu.append(quit_action)
+    menu.addAction(polychromatic_action)
+    menu.addAction(input_remapper_action)
 
     return MenuWidgets(
         menu=menu,
@@ -198,5 +148,4 @@ def create_menu(
         battery_logger_stop_action=battery_logger_stop_action,
         polychromatic_action=polychromatic_action,
         input_remapper_action=input_remapper_action,
-        quit_action=quit_action,
     )

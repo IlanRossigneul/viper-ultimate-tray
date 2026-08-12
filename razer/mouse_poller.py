@@ -1,6 +1,6 @@
 from collections.abc import Callable
 
-from gi.repository import GLib
+from PySide6.QtCore import QTimer
 
 from razer.mouse_state import MouseState, get_mouse_state
 
@@ -16,6 +16,9 @@ class MousePoller:
 
         self.connected: bool = True
 
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.poll)
+
     def poll(self) -> None:
         try:
             state = get_mouse_state()
@@ -30,16 +33,9 @@ class MousePoller:
 
         self._handle_connected(state)
 
-    def start(
-        self,
-        interval: int = 2000,
-    ) -> None:
-        def refresh() -> bool:
-            self.poll()
-            return True
+    def start(self, interval: int = 2000) -> None:
+        self.timer.start(interval)
 
-        GLib.timeout_add(interval, refresh)
-    
     def _handle_disconnected(self) -> None:
         if self.connected:
             print("Mouse disconnected.", flush=True)
@@ -47,10 +43,7 @@ class MousePoller:
         self.connected = False
         self.on_disconnected()
 
-    def _handle_connected(
-        self,
-        state: MouseState,
-    ) -> None:
+    def _handle_connected(self, state: MouseState) -> None:
         if not self.connected:
             print("Mouse reconnected.", flush=True)
 

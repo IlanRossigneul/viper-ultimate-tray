@@ -1,6 +1,8 @@
 from typing import Any
 
-import gi
+from PySide6.QtWidgets import QApplication
+
+from KStatusNotifierItem import KStatusNotifierItem
 
 from battery.models import load_charge_models
 
@@ -26,14 +28,10 @@ from ui.tray_view import create_indicator
 
 from notifications.mouse_notifications import MouseNotificationManager
 
-gi.require_version("Gtk", "3.0")
-
-from gi.repository import AppIndicator3, Gtk
-
 
 class Application:
     def __init__(self) -> None:
-        self.indicator: AppIndicator3.Indicator | None = None
+        self.indicator: KStatusNotifierItem | None = None
 
         self.mouse_controller: MouseController | None = None
         self.status_view: StatusView | None = None
@@ -69,16 +67,14 @@ class Application:
             stage_items=widgets.stage_items,
         )
 
-
     def _update_logger_menu_state(self) -> None:
         if self.log_manager is None or self.menu_widgets is None:
             return
 
         running = self.log_manager.is_logger_running()
 
-        self.menu_widgets.battery_logger_start_action.set_sensitive(not running)
-        self.menu_widgets.battery_logger_stop_action.set_sensitive(running)
-
+        self.menu_widgets.battery_logger_start_action.setEnabled(not running)
+        self.menu_widgets.battery_logger_stop_action.setEnabled(running)
 
     def _start_battery_logger(self) -> None:
         if self.log_manager is None:
@@ -89,7 +85,6 @@ class Application:
 
         self._update_logger_menu_state()
 
-
     def _stop_battery_logger(self) -> None:
         if self.log_manager is None:
             return
@@ -99,11 +94,9 @@ class Application:
 
         self._update_logger_menu_state()
 
-
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
             print("Failed to change the DPI stage.", flush=True)
-
 
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
@@ -111,15 +104,20 @@ class Application:
         if self.notification_manager is not None:
             self.notification_manager.reset()
 
-
     def _handle_connected(self, state: MouseState) -> None:
         self.status_view.show_connected(state)
 
         if self.notification_manager is not None:
             self.notification_manager.update(state)
 
-
     def run(self) -> int:
+        app = QApplication.instance()
+
+        if app is None:
+            app = QApplication([])
+
+        app.setQuitOnLastWindowClosed(False)
+
         charge_models = load_charge_models()
 
         state = get_mouse_state()
@@ -141,21 +139,17 @@ class Application:
             state.device_name,
         )
 
-        self.menu_widgets.battery_logger_start_action.connect(
-            "activate",
-            lambda *_: self._start_battery_logger(),
+        self.menu_widgets.battery_logger_start_action.triggered.connect(
+            self._start_battery_logger,
         )
 
-        self.menu_widgets.battery_logger_stop_action.connect(
-            "activate",
-            lambda *_: self._stop_battery_logger(),
+        self.menu_widgets.battery_logger_stop_action.triggered.connect(
+            self._stop_battery_logger,
         )
 
         self._update_logger_menu_state()
 
         self.mouse_controller = MouseController()
-
-        menu = self.menu_widgets.menu
 
         stage_menu = self.menu_widgets.stage_menu
         stage_items = self.menu_widgets.stage_items
@@ -178,8 +172,6 @@ class Application:
         self.poller.poll()
         self.poller.start()
 
-        self.indicator.set_menu(menu)
+        self.indicator.setContextMenu(self.menu_widgets.menu)
 
-        menu.show_all()
-
-        return Gtk.main()
+        return app.exec()

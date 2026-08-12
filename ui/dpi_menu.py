@@ -1,38 +1,30 @@
 from collections.abc import Callable
 
-import gi
-
-gi.require_version("Gtk", "3.0")
-
-from gi.repository import Gtk
+from PySide6.QtGui import QAction, QActionGroup
+from PySide6.QtWidgets import QMenu
 
 from razer.mouse_state import DPIStage
 
 
 def create_dpi_stage_menu(
-    stage_menu: Gtk.Menu,
+    stage_menu: QMenu,
     stages: list[DPIStage],
     callback: Callable[[int], None],
-) -> list[Gtk.RadioMenuItem]:
-    stage_items: list[Gtk.RadioMenuItem] = []
+) -> list[QAction]:
+    stage_items: list[QAction] = []
 
-    stage_group = None
+    stage_group = QActionGroup(stage_menu)
+    stage_group.setExclusive(True)
 
     for index, stage in enumerate(stages, start=1):
-        item = Gtk.RadioMenuItem.new_with_label(stage_group, f"{stage.x:>4}")
+        item = QAction(f"{stage.x:>4}", stage_menu)
 
-        stage_group = item.get_group()
+        item.setCheckable(True)
 
-        def on_toggled(
-            item,
-            stage: int = index,
-        ) -> None:
-            if item.get_active():
-                callback(stage)
+        item.triggered.connect(lambda _checked, stage=index: callback(stage))
 
-        item.connect("toggled", on_toggled)
-
-        stage_menu.append(item)
+        stage_group.addAction(item)
+        stage_menu.addAction(item)
         stage_items.append(item)
 
     return stage_items
