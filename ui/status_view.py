@@ -25,6 +25,8 @@ class StatusView:
         idle_item: QAction,
         low_battery_item: QAction,
         stage_items: list[QAction],
+        idle_items: list[QAction],
+        low_battery_items: list[QAction],
     ):
         self.indicator = indicator
 
@@ -42,6 +44,10 @@ class StatusView:
         self.low_battery_item = low_battery_item
 
         self.stage_items = stage_items
+
+        self.idle_items = idle_items
+
+        self.low_battery_items = low_battery_items
 
     def show_disconnected(self) -> None:
         self.indicator.setIconByPixmap(QPixmap(str(self.menu_icon_dir / "mouse.svg")))
@@ -70,6 +76,12 @@ class StatusView:
         for item in self.stage_items:
             item.setEnabled(False)
 
+        for item in self.idle_items:
+            item.setEnabled(False)
+
+        for item in self.low_battery_items:
+            item.setEnabled(False)
+
         self.indicator.setTitle("Razer Viper Ultimate déconnectée")
 
     def show_connected(self, state: MouseState) -> None:
@@ -77,7 +89,9 @@ class StatusView:
         is_charging = state.charging
 
         if battery is None:
-            self.indicator.setIconByPixmap(QPixmap(str(self.menu_icon_dir / "mouse.svg")))
+            self.indicator.setIconByPixmap(
+                QPixmap(str(self.menu_icon_dir / "mouse.svg"))
+            )
 
             self.name_item.setText(state.device_name)
 
@@ -107,6 +121,12 @@ class StatusView:
             item.setEnabled(True)
 
         for item in self.stage_items:
+            item.setEnabled(True)
+
+        for item in self.idle_items:
+            item.setEnabled(True)
+
+        for item in self.low_battery_items:
             item.setEnabled(True)
 
         self.name_item.setText(state.device_name)
@@ -153,5 +173,19 @@ class StatusView:
             item.setChecked(index == state.active_stage)
 
         self.idle_item.setText(f"Hibernation : {state.idle_minutes} min")
+
+        if state.idle_minutes is not None:
+            for minutes, item in zip(
+                range(15, 0, -1),
+                self.idle_items,
+            ):
+                item.setChecked(minutes == state.idle_minutes)
+
+        if state.low_battery_threshold is not None:
+            for threshold, item in zip(
+                range(25, 4, -5),
+                self.low_battery_items,
+            ):
+                item.setChecked(threshold == state.low_battery_threshold)
 
         self.low_battery_item.setText(f"Basse consommation : {state.low_battery_threshold} %")

@@ -20,6 +20,12 @@ class MenuWidgets:
     stage_menu: QMenu
     stage_items: list[QAction]
 
+    idle_menu: QMenu
+    idle_items: list[QAction]
+
+    low_battery_menu: QMenu
+    low_battery_items: list[QAction]
+
     logs_item: QAction
     battery_logger_start_action: QAction
     battery_logger_stop_action: QAction
@@ -61,13 +67,25 @@ def create_menu(
 
     idle_item = create_menu_item(menu_icon_dir / "hibernation.svg")
 
-    low_battery_item = create_menu_item(menu_icon_dir / "low-conso.svg")
+    low_battery_item = create_menu_item(menu_icon_dir / "low_battery.svg")
 
     stage_menu = QMenu()
 
     stage_item.setMenu(stage_menu)
 
     stage_items: list[QAction] = []
+
+    idle_menu = QMenu()
+
+    idle_item.setMenu(idle_menu)
+
+    idle_items: list[QAction] = []
+
+    low_battery_menu = QMenu()
+
+    low_battery_item.setMenu(low_battery_menu)
+
+    low_battery_items: list[QAction] = []
 
     logs_item = create_menu_item(menu_log_icon_dir / "logs.svg", "Journaux")
 
@@ -143,6 +161,10 @@ def create_menu(
         low_battery_item=low_battery_item,
         stage_menu=stage_menu,
         stage_items=stage_items,
+        idle_menu=idle_menu,
+        idle_items=idle_items,
+        low_battery_menu=low_battery_menu,
+        low_battery_items=low_battery_items,
         logs_item=logs_item,
         battery_logger_start_action=battery_logger_start_action,
         battery_logger_stop_action=battery_logger_stop_action,

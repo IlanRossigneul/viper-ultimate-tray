@@ -22,6 +22,8 @@ from razer.mouse_poller import MousePoller
 from razer.mouse_state import MouseState, get_mouse_state
 
 from ui.dpi_menu import create_dpi_stage_menu
+from ui.idle_menu import create_idle_time_menu
+from ui.low_battery_menu import create_low_battery_menu
 from ui.menu import MenuWidgets, create_menu
 from ui.status_view import StatusView
 from ui.tray_view import create_indicator
@@ -63,7 +65,9 @@ class Application:
             dpi_item=widgets.dpi_item,
             stage_item=widgets.stage_item,
             idle_item=widgets.idle_item,
+            idle_items=widgets.idle_items,
             low_battery_item=widgets.low_battery_item,
+            low_battery_items=widgets.low_battery_items,
             stage_items=widgets.stage_items,
         )
 
@@ -97,6 +101,14 @@ class Application:
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
             print("Failed to change the DPI stage.", flush=True)
+
+    def _set_idle_time(self, minutes: int) -> None:
+        if not self.mouse_controller.set_idle_time(minutes):
+            print("Failed to change the hibernation time.", flush=True)
+
+    def _set_low_battery_threshold(self, threshold: int) -> None:
+        if not self.mouse_controller.set_low_battery_threshold(threshold):
+            print("Failed to change the low battery threshold.", flush=True)
 
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
@@ -154,13 +166,36 @@ class Application:
         stage_menu = self.menu_widgets.stage_menu
         stage_items = self.menu_widgets.stage_items
 
+        idle_menu = self.menu_widgets.idle_menu
+        idle_items = self.menu_widgets.idle_items
+
+        low_battery_menu = self.menu_widgets.low_battery_menu
+        low_battery_items = self.menu_widgets.low_battery_items
+
         self.status_view = self._create_status_view(self.menu_widgets, charge_models)
 
         stage_items.extend(
             create_dpi_stage_menu(
                 stage_menu,
                 state.stages,
+                self.menu_icon_dir,
                 self._set_active_stage,
+            )
+        )
+
+        idle_items.extend(
+            create_idle_time_menu(
+                idle_menu,
+                self.menu_icon_dir / "hibernation.svg",
+                self._set_idle_time,
+            )
+        )
+
+        low_battery_items.extend(
+            create_low_battery_menu(
+                low_battery_menu,
+                self.menu_icon_dir / "low_battery.svg",
+                self._set_low_battery_threshold,
             )
         )
 
