@@ -14,12 +14,6 @@ class ChargingSource(Enum):
 
 
 @dataclass(slots=True)
-class DPIStage:
-    x: int
-    y: int
-
-
-@dataclass(slots=True)
 class MouseState:
     connected: bool
 
@@ -32,20 +26,14 @@ class MouseState:
     dpi: int | None
 
     active_stage: int | None
-    stages: list[DPIStage]
+    stages: list[int]
 
     idle_minutes: int | None
     low_battery_threshold: int | None
 
 
-def _convert_dpi_stages(stages: list[tuple[int, int]]) -> list[DPIStage]:
-    return [
-        DPIStage(
-            x=dpi_x,
-            y=dpi_y,
-        )
-        for dpi_x, dpi_y in stages
-    ]
+def _convert_dpi_stages(stages: list[tuple[int, int]]) -> list[int]:
+    return [dpi_x for dpi_x, _ in stages]
 
 
 def _get_disconnected_state() -> MouseState:
@@ -69,7 +57,7 @@ def get_mouse_state() -> MouseState:
 
         mouse = find_viper_ultimate_device(device_manager)
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         return _get_disconnected_state()
 
     if mouse is None:
@@ -92,7 +80,7 @@ def get_mouse_state() -> MouseState:
 
         low_battery_threshold = mouse.get_low_battery_threshold()
 
-    except Exception:
+    except Exception:  # noqa: BLE001
         return _get_disconnected_state()
 
     return MouseState(

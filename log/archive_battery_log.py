@@ -25,10 +25,11 @@ class BatteryLogArchiver:
             print(message, flush=True)
 
     def _create_archive_directory(self) -> Path:
+        # Archive directory names intentionally use local wall-clock time.
         archive_directory = (
             self.log_dir
             / self.ARCHIVE_DIRECTORY
-            / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # noqa: DTZ005
         )
 
         archive_directory.mkdir(parents=True, exist_ok=True)

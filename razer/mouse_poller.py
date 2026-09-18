@@ -23,7 +23,7 @@ class MousePoller:
         try:
             state = get_mouse_state()
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             self._handle_disconnected()
             return
 

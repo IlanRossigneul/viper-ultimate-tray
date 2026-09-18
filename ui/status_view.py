@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtGui import QAction, QIcon, QPixmap
 from KStatusNotifierItem import KStatusNotifierItem
+from PySide6.QtGui import QAction, QIcon, QPixmap
 
 from battery.estimation import get_charge_estimation
 from battery.icons import get_battery_icon, get_tray_icon
@@ -99,12 +99,7 @@ class StatusView:
             return
 
         self.indicator.setIconByPixmap(
-            QPixmap(
-                str(
-                    self.tray_icon_dir
-                    / get_tray_icon(battery, is_charging)
-                )
-            )
+            QPixmap(str(self.tray_icon_dir / get_tray_icon(battery, is_charging)))
         )
 
         for item in [
@@ -131,10 +126,7 @@ class StatusView:
 
         self.battery_item.setIcon(
             QIcon(
-                str(
-                    self.menu_battery_icon_dir
-                    / get_battery_icon(battery, is_charging)
-                )
+                str(self.menu_battery_icon_dir / get_battery_icon(battery, is_charging))
             )
         )
 
@@ -160,7 +152,7 @@ class StatusView:
         for index, stage in enumerate(state.stages, start=1):
             item = self.stage_items[index - 1]
 
-            item.setText(f"{stage.x:>4}")
+            item.setText(f"{stage:>4}")
             item.setChecked(index == state.active_stage)
 
         self.idle_item.setText(f"Hibernation : {state.idle_minutes} min")

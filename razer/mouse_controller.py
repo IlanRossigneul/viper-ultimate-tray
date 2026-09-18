@@ -16,7 +16,7 @@ class MouseController:
             mouse.dpi_stages = (stage_number, stages)
             return True
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False
 
     def set_idle_time(self, minutes: int) -> bool:
@@ -29,7 +29,7 @@ class MouseController:
             mouse.set_idle_time(minutes * 60)
             return True
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False
 
     def set_low_battery_threshold(self, threshold: int) -> bool:
@@ -42,5 +42,5 @@ class MouseController:
             mouse.set_low_battery_threshold(threshold)
             return True
 
-        except Exception:
+        except Exception:  # noqa: BLE001
             return False

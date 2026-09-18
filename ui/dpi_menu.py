@@ -19,7 +19,7 @@ def create_dpi_stage_menu(
     stage_group.setExclusive(True)
 
     for index, stage in enumerate(stages, start=1):
-        item = QAction(f"{stage.x:>4}", stage_menu)
+        item = QAction(f"{stage:>4}", stage_menu)
 
         if index == 1:
             item.setIcon(QIcon(str(icon_dir / "slow.svg")))

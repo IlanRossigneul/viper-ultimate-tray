@@ -8,13 +8,7 @@ from gi.repository import GLib, Notify
 
 from razer.mouse_state import MouseState
 
-
-BATTERY_ICON_DIR = (
-    Path(__file__).resolve().parent.parent
-    / "icons"
-    / "menu"
-    / "battery"
-)
+BATTERY_ICON_DIR = Path(__file__).resolve().parent.parent / "icons" / "menu" / "battery"
 
 LOW_BATTERY_ICON_PATH = BATTERY_ICON_DIR / "battery-2.svg"
 VERY_LOW_BATTERY_ICON_PATH = BATTERY_ICON_DIR / "battery-1.svg"

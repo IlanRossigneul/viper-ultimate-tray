@@ -1,15 +1,15 @@
 from typing import Any
 
-from PySide6.QtWidgets import QApplication
 from KStatusNotifierItem import KStatusNotifierItem
+from PySide6.QtWidgets import QApplication
 
 from battery.models import load_charge_models
 from config.paths import (
     ICON_DIR,
     LOG_DIR,
     MENU_BATTERY_ICON_DIR,
-    MENU_LOG_ICON_DIR,
     MENU_ICON_DIR,
+    MENU_LOG_ICON_DIR,
     TRAY_ICON_DIR,
 )
 from log.manager import LogManager

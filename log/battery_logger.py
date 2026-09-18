@@ -50,7 +50,7 @@ class BatteryLogger:
     def stop(self) -> None:
         self.running = False
 
-    def _request_stop(self, signum, frame) -> None:
+    def _request_stop(self, _signum, _frame) -> None:
         if self.running:
             self._log("\nStopping battery logger...")
             self.stop()
@@ -91,7 +91,7 @@ class BatteryLogger:
 
                     writer.writerow([timestamp, battery, is_charging])
 
-            except Exception:
+            except Exception:  # noqa: BLE001
                 traceback.print_exc()
 
             time.sleep(self.interval_seconds)

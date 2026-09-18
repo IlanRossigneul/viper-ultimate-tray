@@ -7,7 +7,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
 ChargeEntry = dict[str, datetime | float | bool]
 
 EMPTY_CHARGE_LEVEL = 0
@@ -57,11 +56,7 @@ class ChargeAnalyzer:
             ]
 
     def _get_charging_entries(self, entries: list[ChargeEntry]) -> list[ChargeEntry]:
-        charging_entries = [
-            entry
-            for entry in entries
-            if entry["is_charging"]
-        ]
+        charging_entries = [entry for entry in entries if entry["is_charging"]]
 
         if not charging_entries:
             raise ValueError("No charging session found.")
@@ -106,8 +101,7 @@ class ChargeAnalyzer:
                 )
 
                 is_initial_partial_transition = (
-                    first_level != EMPTY_CHARGE_LEVEL
-                    and previous_level == first_level
+                    first_level != EMPTY_CHARGE_LEVEL and previous_level == first_level
                 )
 
                 if not is_initial_partial_transition:
@@ -301,7 +295,7 @@ class ChargeAnalyzer:
 def main() -> None:
     try:
         ChargeAnalyzer(Path(__file__).resolve().parent, verbose=True).analyze()
-    except Exception:
+    except Exception:  # noqa: BLE001
         traceback.print_exc()
 
 

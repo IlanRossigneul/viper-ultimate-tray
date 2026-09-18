@@ -1,10 +1,10 @@
 from pathlib import Path
 from threading import Thread
 
-from .battery_logger import BatteryLogger
-from .clean_battery_log import BatteryLogCleaner
 from .analyze_charge import ChargeAnalyzer
 from .archive_battery_log import BatteryLogArchiver
+from .battery_logger import BatteryLogger
+from .clean_battery_log import BatteryLogCleaner
 from .delete_battery_log import BatteryLogDeleter
 
 
@@ -19,7 +19,9 @@ class LogManager:
 
         self.analyzer: ChargeAnalyzer = ChargeAnalyzer(self.log_dir, verbose=False)
 
-        self.archiver: BatteryLogArchiver = BatteryLogArchiver(self.log_dir, verbose=False)
+        self.archiver: BatteryLogArchiver = BatteryLogArchiver(
+            self.log_dir, verbose=False
+        )
 
         self.deleter: BatteryLogDeleter = BatteryLogDeleter(self.log_dir, verbose=False)
 
@@ -30,7 +32,7 @@ class LogManager:
         try:
             self.cleaner.clean()
             return True
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             print(f"Failed to clean battery logs: {error}", flush=True)
             return False
 
@@ -38,7 +40,7 @@ class LogManager:
         try:
             self.analyzer.analyze()
             return True
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             print(f"Failed to analyze battery logs: {error}", flush=True)
             return False
 
@@ -46,7 +48,7 @@ class LogManager:
         try:
             self.archiver.archive()
             return True
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             print(f"Failed to archive battery logs: {error}", flush=True)
             return False
 
@@ -54,7 +56,7 @@ class LogManager:
         try:
             self.deleter.delete()
             return True
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             print(f"Failed to delete battery logs: {error}", flush=True)
             return False
 
@@ -77,7 +79,9 @@ class LogManager:
 
         self.logger = BatteryLogger(self.log_dir, verbose=False)
 
-        self.logger_thread = Thread(target=self.logger.run, daemon=True, name="BatteryLogger")
+        self.logger_thread = Thread(
+            target=self.logger.run, daemon=True, name="BatteryLogger"
+        )
 
         self.logger_thread.start()
 

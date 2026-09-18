@@ -94,29 +94,31 @@ def create_menu(
     logs_item.setMenu(logs_menu)
 
     battery_logger_start_action = create_menu_item(
-        menu_log_icon_dir / "start.svg", "Démarrer",
+        menu_log_icon_dir / "start.svg",
+        "Démarrer",
     )
 
     battery_logger_stop_action = create_menu_item(
-        menu_log_icon_dir / "stop.svg", "Arrêter",
+        menu_log_icon_dir / "stop.svg",
+        "Arrêter",
     )
 
     polychromatic_action = create_menu_item(
-        menu_icon_dir / "polychromatic.svg", "Ouvrir Polychromatic",
+        menu_icon_dir / "polychromatic.svg",
+        "Ouvrir Polychromatic",
     )
 
     polychromatic_action.triggered.connect(
-        lambda:
-            subprocess.Popen(["polychromatic-controller"], start_new_session=True)
+        lambda: subprocess.Popen(["polychromatic-controller"], start_new_session=True)
     )
 
     input_remapper_action = create_menu_item(
-        menu_icon_dir / "input-remapper.svg", "Ouvrir Input Remapper",
+        menu_icon_dir / "input-remapper.svg",
+        "Ouvrir Input Remapper",
     )
 
     input_remapper_action.triggered.connect(
-        lambda:
-            subprocess.Popen(["input-remapper-gtk"], start_new_session=True)
+        lambda: subprocess.Popen(["input-remapper-gtk"], start_new_session=True)
     )
 
     menu.addAction(name_item)
