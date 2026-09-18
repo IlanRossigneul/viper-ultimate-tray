@@ -30,12 +30,12 @@ dist/
 .mypy_cache/
 
 # Battery generated data
-battery_logs/battery_charge_*.json
-battery_logs/battery_*_charge_log*.csv
-battery_logs/battery_*_charge_log_cleaned*.csv
+src/battery_logs/battery_charge_*.json
+src/battery_logs/battery_*_charge_log*.csv
+src/battery_logs/battery_*_charge_log_cleaned*.csv
 
 # Archive battery logs
-battery_logs/archive/
+src/battery_logs/archive/
 
-# Local logs (si tu en ajoutes plus tard)
+# Local logs
 *.log
