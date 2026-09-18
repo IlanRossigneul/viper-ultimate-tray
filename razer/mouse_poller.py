@@ -1,8 +1,11 @@
+import logging
 from collections.abc import Callable
 
 from PySide6.QtCore import QTimer
 
 from razer.mouse_state import MouseState, get_mouse_state
+
+logger = logging.getLogger(__name__)
 
 
 class MousePoller:
@@ -38,14 +41,14 @@ class MousePoller:
 
     def _handle_disconnected(self) -> None:
         if self.connected:
-            print("Mouse disconnected.", flush=True)
+            logger.info("Mouse disconnected.")
 
         self.connected = False
         self.on_disconnected()
 
     def _handle_connected(self, state: MouseState) -> None:
         if not self.connected:
-            print("Mouse reconnected.", flush=True)
+            logger.info("Mouse reconnected.")
 
         self.connected = True
         self.on_connected(state)

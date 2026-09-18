@@ -1,18 +1,20 @@
+import argparse
+import logging
 from typing import Any
 
 from KStatusNotifierItem import KStatusNotifierItem
 from PySide6.QtWidgets import QApplication
 
 from battery.models import load_charge_models
+from battery_logs.manager import LogManager
 from config.paths import (
+    BATTERY_LOGS_DIR,
     ICON_DIR,
-    LOG_DIR,
     MENU_BATTERY_ICON_DIR,
     MENU_ICON_DIR,
     MENU_LOG_ICON_DIR,
     TRAY_ICON_DIR,
 )
-from log.manager import LogManager
 from notifications.mouse_notifications import MouseNotificationManager
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
@@ -23,6 +25,10 @@ from ui.low_battery_menu import create_low_battery_menu
 from ui.menu import MenuWidgets, create_menu
 from ui.status_view import StatusView
 from ui.tray_view import create_indicator
+
+from .logging import setup_logger
+
+logger = logging.getLogger(__name__)
 
 
 class Application:
@@ -37,11 +43,38 @@ class Application:
         self.notification_manager: MouseNotificationManager | None = None
 
         self.icon_dir = ICON_DIR
-        self.log_dir = LOG_DIR
+        self.battery_logs_dir = BATTERY_LOGS_DIR
         self.menu_icon_dir = MENU_ICON_DIR
         self.menu_battery_icon_dir = MENU_BATTERY_ICON_DIR
         self.menu_log_icon_dir = MENU_LOG_ICON_DIR
         self.tray_icon_dir = TRAY_ICON_DIR
+
+    def _parse_args(
+        self,
+        args: list[str],
+    ) -> int:
+        """Parse command-line arguments."""
+        parser = argparse.ArgumentParser()
+
+        group = parser.add_mutually_exclusive_group()
+
+        group.add_argument(
+            "--info",
+            dest="log_level",
+            action="store_const",
+            const=logging.INFO,
+        )
+
+        group.add_argument(
+            "--debug",
+            dest="log_level",
+            action="store_const",
+            const=logging.DEBUG,
+        )
+
+        parsed = parser.parse_args(args)
+
+        return parsed.log_level if parsed.log_level is not None else logging.INFO
 
     def _create_status_view(
         self,
@@ -79,7 +112,7 @@ class Application:
             return
 
         if self.log_manager.start_logger():
-            print("Battery logger started.", flush=True)
+            logger.info("Battery logger started.")
 
         self._update_logger_menu_state()
 
@@ -88,21 +121,21 @@ class Application:
             return
 
         if self.log_manager.stop_logger():
-            print("Battery logger stopped.", flush=True)
+            logger.info("Battery logger stopped.")
 
         self._update_logger_menu_state()
 
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
-            print("Failed to change the DPI stage.", flush=True)
+            logger.error("Failed to change the DPI stage.")
 
     def _set_idle_time(self, minutes: int) -> None:
         if not self.mouse_controller.set_idle_time(minutes):
-            print("Failed to change the hibernation time.", flush=True)
+            logger.error("Failed to change the hibernation time.")
 
     def _set_low_battery_threshold(self, threshold: int) -> None:
         if not self.mouse_controller.set_low_battery_threshold(threshold):
-            print("Failed to change the low battery threshold.", flush=True)
+            logger.error("Failed to change the low battery threshold.")
 
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
@@ -116,7 +149,10 @@ class Application:
         if self.notification_manager is not None:
             self.notification_manager.update(state)
 
-    def run(self) -> int:
+    def run(self, args: list[str]) -> int:
+        log_level = self._parse_args(args)
+        setup_logger(log_level)
+
         app = QApplication.instance()
 
         if app is None:
@@ -129,12 +165,12 @@ class Application:
         state = get_mouse_state()
 
         if not state.connected:
-            print("Razer Viper Ultimate not detected.", flush=True)
+            logger.error("Razer Viper Ultimate not detected.")
             return 1
 
         self.indicator = create_indicator(self.icon_dir)
 
-        self.log_manager = LogManager(self.log_dir)
+        self.log_manager = LogManager(self.battery_logs_dir)
 
         self.notification_manager = MouseNotificationManager()
 

@@ -4,12 +4,10 @@ from pathlib import Path
 from PySide6.QtGui import QAction, QActionGroup, QIcon
 from PySide6.QtWidgets import QMenu
 
-from razer.mouse_state import DPIStage
-
 
 def create_dpi_stage_menu(
     stage_menu: QMenu,
-    stages: list[DPIStage],
+    stages: list[int],
     icon_dir: Path,
     callback: Callable[[int], None],
 ) -> list[QAction]:

@@ -1,15 +1,19 @@
 import csv
 import json
+import logging
 import math
-import traceback
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.logging import setup_logger
+
 ChargeEntry = dict[str, datetime | float | bool]
 
 EMPTY_CHARGE_LEVEL = 0
+
+logger = logging.getLogger(__name__)
 
 
 class ChargeAnalyzer:
@@ -18,22 +22,12 @@ class ChargeAnalyzer:
         ("wireless", Path("battery_wireless_charge_log_cleaned.csv")),
     )
 
-    def __init__(
-        self,
-        log_dir: Path,
-        verbose: bool = False,
-    ) -> None:
+    def __init__(self, log_dir: Path) -> None:
         self.log_dir = log_dir
-
-        self.verbose = verbose
 
         self.model_file = log_dir / "battery_charge_model.json"
 
         self.samples_file = log_dir / "battery_charge_samples.json"
-
-    def _log(self, message: str) -> None:
-        if self.verbose:
-            print(message, flush=True)
 
     def _load_charge_log(self, input_file: Path) -> list[ChargeEntry]:
         if not input_file.exists():
@@ -228,18 +222,18 @@ class ChargeAnalyzer:
         samples: dict[str, Any],
         model: dict[str, Any],
     ) -> None:
-        self._log(f"\nAnalyze {mode}...")
+        logger.info("Analyze %s...", mode)
 
         entries = self._load_charge_log(input_file)
 
         try:
             transitions = self._build_charge_transitions(entries)
         except ValueError as error:
-            self._log(f"{mode}: {error}")
+            logger.warning("%s: %s", mode, error)
             return
 
         if self._sample_already_exists(samples[mode], transitions):
-            self._log("Sample already exists.")
+            logger.info("Sample already exists.")
             return
 
         now = datetime.now().astimezone().isoformat(timespec="seconds")
@@ -252,12 +246,19 @@ class ChargeAnalyzer:
 
         model[mode]["statistics"]["last_updated"] = now
 
-        self._log(f"Sample added: {model[mode]['statistics']['sample_count']}")
+        logger.info(
+            "Sample added: %s",
+            model[mode]["statistics"]["sample_count"],
+        )
 
-        self._log(f"Average model {mode}:")
+        logger.debug("Average model %s:", mode)
 
         for level, seconds in model[mode]["average"].items():
-            self._log(f"{level:>2} % : {self._format_duration(seconds)}")
+            logger.debug(
+                "%2s %% : %s",
+                level,
+                self._format_duration(seconds),
+            )
 
     def analyze(self) -> None:
         samples = self._load_samples()
@@ -284,7 +285,7 @@ class ChargeAnalyzer:
             self._save_samples(samples)
             self._save_model(model)
 
-            self._log("No cleaned battery log found.")
+            logger.info("No cleaned battery log found.")
 
             return
 
@@ -293,10 +294,12 @@ class ChargeAnalyzer:
 
 
 def main() -> None:
+    setup_logger(logging.DEBUG)
+
     try:
-        ChargeAnalyzer(Path(__file__).resolve().parent, verbose=True).analyze()
-    except Exception:  # noqa: BLE001
-        traceback.print_exc()
+        ChargeAnalyzer(Path(__file__).resolve().parent).analyze()
+    except Exception:
+        logger.exception("Failed to analyze charge logs.")
 
 
 if __name__ == "__main__":

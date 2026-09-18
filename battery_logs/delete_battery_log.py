@@ -1,4 +1,9 @@
+import logging
 from pathlib import Path
+
+from app.logging import setup_logger
+
+logger = logging.getLogger(__name__)
 
 
 class BatteryLogDeleter:
@@ -9,14 +14,8 @@ class BatteryLogDeleter:
         "battery_wireless_charge_log_cleaned.csv",
     )
 
-    def __init__(self, log_dir: Path, verbose: bool = False) -> None:
+    def __init__(self, log_dir: Path) -> None:
         self.log_dir = log_dir
-
-        self.verbose = verbose
-
-    def _log(self, message: str) -> None:
-        if self.verbose:
-            print(message, flush=True)
 
     def delete(self) -> None:
         deleted_files = 0
@@ -31,16 +30,18 @@ class BatteryLogDeleter:
 
             deleted_files += 1
 
-            self._log(f"Deleted battery log: {filename}")
+            logger.info("Deleted battery log: %s", filename)
 
         if deleted_files == 0:
-            self._log("No battery log found to delete.")
+            logger.info("No battery log found to delete.")
         else:
-            self._log(f"Deleted {deleted_files} battery log file(s).")
+            logger.info("Deleted %s battery log file(s).", deleted_files)
 
 
 def main() -> None:
-    BatteryLogDeleter(Path(__file__).resolve().parent, verbose=True).delete()
+    setup_logger(logging.DEBUG)
+
+    BatteryLogDeleter(Path(__file__).resolve().parent).delete()
 
 
 if __name__ == "__main__":

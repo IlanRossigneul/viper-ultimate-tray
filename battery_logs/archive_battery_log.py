@@ -1,6 +1,11 @@
+import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
+
+from app.logging import setup_logger
+
+logger = logging.getLogger(__name__)
 
 
 class BatteryLogArchiver:
@@ -11,18 +16,8 @@ class BatteryLogArchiver:
 
     ARCHIVE_DIRECTORY: str = "archive"
 
-    def __init__(
-        self,
-        log_dir: Path,
-        verbose: bool = False,
-    ) -> None:
+    def __init__(self, log_dir: Path) -> None:
         self.log_dir = log_dir
-
-        self.verbose = verbose
-
-    def _log(self, message: str) -> None:
-        if self.verbose:
-            print(message, flush=True)
 
     def _create_archive_directory(self) -> Path:
         # Archive directory names intentionally use local wall-clock time.
@@ -56,14 +51,16 @@ class BatteryLogArchiver:
 
             archived_files += 1
 
-            self._log(f"{filename}: archived.")
+            logger.info("%s/%s: archived.", archive_directory, filename)
 
         if archived_files == 0:
-            self._log("No battery log found.")
+            logger.info("No battery log found.")
 
 
 def main() -> None:
-    BatteryLogArchiver(Path(__file__).resolve().parent, verbose=True).archive()
+    setup_logger(logging.DEBUG)
+
+    BatteryLogArchiver(Path(__file__).resolve().parent).archive()
 
 
 if __name__ == "__main__":

@@ -1,5 +1,10 @@
 import csv
+import logging
 from pathlib import Path
+
+from app.logging import setup_logger
+
+logger = logging.getLogger(__name__)
 
 
 class BatteryLogCleaner:
@@ -8,18 +13,8 @@ class BatteryLogCleaner:
         "battery_wireless_charge_log.csv",
     )
 
-    def __init__(
-        self,
-        log_dir: Path,
-        verbose: bool = False,
-    ) -> None:
+    def __init__(self, log_dir: Path) -> None:
         self.log_dir = log_dir
-
-        self.verbose = verbose
-
-    def _log(self, message: str) -> None:
-        if self.verbose:
-            print(message, flush=True)
 
     def _clean_file(self, input_file: Path) -> Path | None:
         if not input_file.exists():
@@ -35,7 +30,7 @@ class BatteryLogCleaner:
             rows = list(csv.DictReader(file))
 
         if not rows:
-            self._log(f"{input_file.name}: empty file.")
+            logger.info("%s: empty file.", input_file.name)
             return None
 
         cleaned_rows: list[dict[str, str]] = []
@@ -74,11 +69,11 @@ class BatteryLogCleaner:
             writer.writeheader()
             writer.writerows(cleaned_rows)
 
-        self._log(f"{input_file.name}: {len(rows)} original rows.")
+        logger.info("%s: %s original rows.", input_file.name, len(rows))
 
-        self._log(f"{input_file.name}: {len(cleaned_rows)} preserved rows.")
+        logger.info("%s: %s preserved rows.", input_file.name, len(cleaned_rows))
 
-        self._log(f"{output_file.name}: created.")
+        logger.info("%s: created.", output_file.name)
 
         return output_file
 
@@ -92,11 +87,13 @@ class BatteryLogCleaner:
                 cleaned_files += 1
 
         if cleaned_files == 0:
-            self._log("No battery log found.")
+            logger.info("No battery log found.")
 
 
 def main() -> None:
-    BatteryLogCleaner(Path(__file__).resolve().parent, verbose=True).clean()
+    setup_logger(logging.DEBUG)
+
+    BatteryLogCleaner(Path(__file__).resolve().parent).clean()
 
 
 if __name__ == "__main__":

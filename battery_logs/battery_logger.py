@@ -1,13 +1,16 @@
 import csv
+import logging
 import signal
 import time
-import traceback
 from datetime import datetime
 from pathlib import Path
 
 from openrazer.client.devices.mice import RazerMouse
 
+from app.logging import setup_logger
 from razer.device import create_device_manager, find_viper_ultimate_device
+
+logger = logging.getLogger(__name__)
 
 
 class BatteryLogger:
@@ -15,19 +18,12 @@ class BatteryLogger:
         self,
         log_dir: Path,
         interval_seconds: int = 1,
-        verbose: bool = False,
     ) -> None:
         self.log_dir = log_dir
 
         self.interval_seconds = interval_seconds
 
-        self.verbose = verbose
-
         self.running = True
-
-    def _log(self, message: str) -> None:
-        if self.verbose:
-            print(message, flush=True)
 
     def _get_log_file(self, mouse: RazerMouse) -> Path:
         filename = (
@@ -52,7 +48,7 @@ class BatteryLogger:
 
     def _request_stop(self, _signum, _frame) -> None:
         if self.running:
-            self._log("\nStopping battery logger...")
+            logger.info("Stopping battery logger...")
             self.stop()
 
     def run(self) -> None:
@@ -61,18 +57,21 @@ class BatteryLogger:
         mouse = find_viper_ultimate_device(device_manager)
 
         if mouse is None:
-            print("Mouse not detected.", flush=True)
+            logger.error("Mouse not detected.")
             return
 
         log_file = self._get_log_file(mouse)
 
         self._initialize_log_file(log_file)
 
-        self._log(f"Detected mode: {mouse.name}")
+        logger.info("Detected mode: %s", mouse.name)
 
-        self._log(f"Log file: {log_file.name}")
+        logger.info("Log file: %s", log_file.name)
 
-        self._log(f"Logging every {self.interval_seconds} second(s).")
+        logger.info(
+            "Logging every %s second(s).",
+            self.interval_seconds,
+        )
 
         while self.running:
             try:
@@ -91,22 +90,24 @@ class BatteryLogger:
 
                     writer.writerow([timestamp, battery, is_charging])
 
-            except Exception:  # noqa: BLE001
-                traceback.print_exc()
+            except Exception:
+                logger.exception("Failed to log battery data.")
 
             time.sleep(self.interval_seconds)
 
-        self._log("Battery logger stopped.")
+        logger.info("Battery logger stopped.")
 
 
 def main() -> None:
-    logger = BatteryLogger(Path(__file__).resolve().parent, verbose=True)
+    setup_logger(logging.DEBUG)
 
-    signal.signal(signal.SIGINT, logger._request_stop)
+    battery_logger = BatteryLogger(Path(__file__).resolve().parent)
 
-    signal.signal(signal.SIGTERM, logger._request_stop)
+    signal.signal(signal.SIGINT, battery_logger._request_stop)
 
-    logger.run()
+    signal.signal(signal.SIGTERM, battery_logger._request_stop)
+
+    battery_logger.run()
 
 
 if __name__ == "__main__":

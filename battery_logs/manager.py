@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from threading import Thread
 
@@ -7,6 +8,8 @@ from .battery_logger import BatteryLogger
 from .clean_battery_log import BatteryLogCleaner
 from .delete_battery_log import BatteryLogDeleter
 
+logger = logging.getLogger(__name__)
+
 
 class LogManager:
     def __init__(self, log_dir: Path) -> None:
@@ -15,15 +18,13 @@ class LogManager:
         self.logger: BatteryLogger | None = None
         self.logger_thread: Thread | None = None
 
-        self.cleaner: BatteryLogCleaner = BatteryLogCleaner(self.log_dir, verbose=False)
+        self.cleaner: BatteryLogCleaner = BatteryLogCleaner(self.log_dir)
 
-        self.analyzer: ChargeAnalyzer = ChargeAnalyzer(self.log_dir, verbose=False)
+        self.analyzer: ChargeAnalyzer = ChargeAnalyzer(self.log_dir)
 
-        self.archiver: BatteryLogArchiver = BatteryLogArchiver(
-            self.log_dir, verbose=False
-        )
+        self.archiver: BatteryLogArchiver = BatteryLogArchiver(self.log_dir)
 
-        self.deleter: BatteryLogDeleter = BatteryLogDeleter(self.log_dir, verbose=False)
+        self.deleter: BatteryLogDeleter = BatteryLogDeleter(self.log_dir)
 
     def is_logger_running(self) -> bool:
         return self.logger_thread is not None and self.logger_thread.is_alive()
@@ -33,7 +34,10 @@ class LogManager:
             self.cleaner.clean()
             return True
         except Exception as error:  # noqa: BLE001
-            print(f"Failed to clean battery logs: {error}", flush=True)
+            logger.error(
+                "Failed to clean battery logs: %s",
+                error,
+            )
             return False
 
     def analyze_charge_logs(self) -> bool:
@@ -41,7 +45,10 @@ class LogManager:
             self.analyzer.analyze()
             return True
         except Exception as error:  # noqa: BLE001
-            print(f"Failed to analyze battery logs: {error}", flush=True)
+            logger.error(
+                "Failed to analyze battery logs: %s",
+                error,
+            )
             return False
 
     def archive_battery_logs(self) -> bool:
@@ -49,7 +56,10 @@ class LogManager:
             self.archiver.archive()
             return True
         except Exception as error:  # noqa: BLE001
-            print(f"Failed to archive battery logs: {error}", flush=True)
+            logger.error(
+                "Failed to archive battery logs: %s",
+                error,
+            )
             return False
 
     def delete_battery_logs(self) -> bool:
@@ -57,7 +67,10 @@ class LogManager:
             self.deleter.delete()
             return True
         except Exception as error:  # noqa: BLE001
-            print(f"Failed to delete battery logs: {error}", flush=True)
+            logger.error(
+                "Failed to delete battery logs: %s",
+                error,
+            )
             return False
 
     def _process_battery_logs(self) -> None:
@@ -77,7 +90,7 @@ class LogManager:
         if self.is_logger_running():
             return False
 
-        self.logger = BatteryLogger(self.log_dir, verbose=False)
+        self.logger = BatteryLogger(self.log_dir)
 
         self.logger_thread = Thread(
             target=self.logger.run, daemon=True, name="BatteryLogger"
