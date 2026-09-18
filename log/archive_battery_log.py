@@ -11,21 +11,18 @@ class BatteryLogArchiver:
 
     ARCHIVE_DIRECTORY: str = "archive"
 
-
     def __init__(
         self,
         log_dir: Path,
         verbose: bool = False,
-    ):
+    ) -> None:
         self.log_dir = log_dir
 
         self.verbose = verbose
 
-
     def _log(self, message: str) -> None:
         if self.verbose:
             print(message, flush=True)
-
 
     def _create_archive_directory(self) -> Path:
         archive_directory = (
@@ -37,7 +34,6 @@ class BatteryLogArchiver:
         archive_directory.mkdir(parents=True, exist_ok=True)
 
         return archive_directory
-
 
     def archive(self) -> None:
         archive_directory: Path | None = None

@@ -1,11 +1,9 @@
 from typing import Any
 
 from PySide6.QtWidgets import QApplication
-
 from KStatusNotifierItem import KStatusNotifierItem
 
 from battery.models import load_charge_models
-
 from config.paths import (
     ICON_DIR,
     LOG_DIR,
@@ -14,21 +12,17 @@ from config.paths import (
     MENU_ICON_DIR,
     TRAY_ICON_DIR,
 )
-
 from log.manager import LogManager
-
+from notifications.mouse_notifications import MouseNotificationManager
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
 from razer.mouse_state import MouseState, get_mouse_state
-
 from ui.dpi_menu import create_dpi_stage_menu
 from ui.idle_menu import create_idle_time_menu
 from ui.low_battery_menu import create_low_battery_menu
 from ui.menu import MenuWidgets, create_menu
 from ui.status_view import StatusView
 from ui.tray_view import create_indicator
-
-from notifications.mouse_notifications import MouseNotificationManager
 
 
 class Application:

@@ -12,16 +12,14 @@ class BatteryLogCleaner:
         self,
         log_dir: Path,
         verbose: bool = False,
-    ):
+    ) -> None:
         self.log_dir = log_dir
 
         self.verbose = verbose
 
-
     def _log(self, message: str) -> None:
         if self.verbose:
             print(message, flush=True)
-
 
     def _clean_file(self, input_file: Path) -> Path | None:
         if not input_file.exists():
@@ -49,10 +47,16 @@ class BatteryLogCleaner:
             next_state = None
 
             if index > 0:
-                previous_state = (rows[index - 1]["battery_percent"], rows[index - 1]["is_charging"])
+                previous_state = (
+                    rows[index - 1]["battery_percent"],
+                    rows[index - 1]["is_charging"],
+                )
 
             if index < len(rows) - 1:
-                next_state = (rows[index + 1]["battery_percent"], rows[index + 1]["is_charging"])
+                next_state = (
+                    rows[index + 1]["battery_percent"],
+                    rows[index + 1]["is_charging"],
+                )
 
             if current_state != previous_state or current_state != next_state:
                 cleaned_rows.append(row)
@@ -62,7 +66,10 @@ class BatteryLogCleaner:
             newline="",
             encoding="utf-8",
         ) as file:
-            writer = csv.DictWriter(file, fieldnames=["timestamp", "battery_percent", "is_charging"])
+            writer = csv.DictWriter(
+                file,
+                fieldnames=["timestamp", "battery_percent", "is_charging"],
+            )
 
             writer.writeheader()
             writer.writerows(cleaned_rows)
@@ -74,7 +81,6 @@ class BatteryLogCleaner:
         self._log(f"{output_file.name}: created.")
 
         return output_file
-
 
     def clean(self) -> None:
         cleaned_files = 0

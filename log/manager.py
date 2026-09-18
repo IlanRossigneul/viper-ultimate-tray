@@ -9,7 +9,7 @@ from .delete_battery_log import BatteryLogDeleter
 
 
 class LogManager:
-    def __init__(self, log_dir: Path):
+    def __init__(self, log_dir: Path) -> None:
         self.log_dir = log_dir
 
         self.logger: BatteryLogger | None = None
@@ -23,10 +23,8 @@ class LogManager:
 
         self.deleter: BatteryLogDeleter = BatteryLogDeleter(self.log_dir, verbose=False)
 
-
     def is_logger_running(self) -> bool:
         return self.logger_thread is not None and self.logger_thread.is_alive()
-
 
     def clean_battery_logs(self) -> bool:
         try:
@@ -36,7 +34,6 @@ class LogManager:
             print(f"Failed to clean battery logs: {error}", flush=True)
             return False
 
-
     def analyze_charge_logs(self) -> bool:
         try:
             self.analyzer.analyze()
@@ -44,7 +41,6 @@ class LogManager:
         except Exception as error:
             print(f"Failed to analyze battery logs: {error}", flush=True)
             return False
-
 
     def archive_battery_logs(self) -> bool:
         try:
@@ -54,7 +50,6 @@ class LogManager:
             print(f"Failed to archive battery logs: {error}", flush=True)
             return False
 
-
     def delete_battery_logs(self) -> bool:
         try:
             self.deleter.delete()
@@ -62,7 +57,6 @@ class LogManager:
         except Exception as error:
             print(f"Failed to delete battery logs: {error}", flush=True)
             return False
-
 
     def _process_battery_logs(self) -> None:
         if not self.clean_battery_logs():
@@ -77,7 +71,6 @@ class LogManager:
         if not self.delete_battery_logs():
             return
 
-
     def start_logger(self) -> bool:
         if self.is_logger_running():
             return False
@@ -89,7 +82,6 @@ class LogManager:
         self.logger_thread.start()
 
         return True
-
 
     def stop_logger(self) -> bool:
         if not self.is_logger_running():

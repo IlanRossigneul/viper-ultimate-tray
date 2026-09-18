@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtGui import QAction, QIcon, QPixmap
-
 from KStatusNotifierItem import KStatusNotifierItem
 
 from battery.estimation import get_charge_estimation
@@ -103,10 +102,7 @@ class StatusView:
             QPixmap(
                 str(
                     self.tray_icon_dir
-                    / get_tray_icon(
-                        battery,
-                        is_charging,
-                    )
+                    / get_tray_icon(battery, is_charging)
                 )
             )
         )
@@ -131,16 +127,13 @@ class StatusView:
 
         self.name_item.setText(state.device_name)
 
-        self.indicator.setTitle(f"{state.device_name} — {battery:.0f} %")
+        self.indicator.setTitle(f"{state.device_name} — {int(battery)} %")
 
         self.battery_item.setIcon(
             QIcon(
                 str(
                     self.menu_battery_icon_dir
-                    / get_battery_icon(
-                        battery,
-                        is_charging,
-                    )
+                    / get_battery_icon(battery, is_charging)
                 )
             )
         )
@@ -151,7 +144,7 @@ class StatusView:
             self.charge_models,
         )
 
-        battery_text = f"Batterie : {battery:.0f} %"
+        battery_text = f"Batterie : {int(battery)} %"
 
         if is_charging and charge_estimation:
             battery_text += f" ({charge_estimation})"
@@ -161,9 +154,7 @@ class StatusView:
         self.dpi_item.setText(f"DPI : {state.dpi}")
 
         self.stage_item.setText(
-            f"Plage DPI : "
-            f"{state.active_stage} / "
-            f"{len(state.stages)}"
+            f"Plage DPI : {state.active_stage} / {len(state.stages)}"
         )
 
         for index, stage in enumerate(state.stages, start=1):
@@ -188,4 +179,6 @@ class StatusView:
             ):
                 item.setChecked(threshold == state.low_battery_threshold)
 
-        self.low_battery_item.setText(f"Basse consommation : {state.low_battery_threshold} %")
+        self.low_battery_item.setText(
+            f"Basse consommation : {state.low_battery_threshold} %"
+        )

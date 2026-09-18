@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from PySide6.QtGui import QPixmap
-
 from KStatusNotifierItem import KStatusNotifierItem
 
 

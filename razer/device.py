@@ -1,15 +1,12 @@
-from typing import Any
-
 from openrazer.client import DeviceManager
+from openrazer.client.devices.mice import RazerMouse
 
 
 def create_device_manager() -> DeviceManager:
     return DeviceManager()
 
 
-def find_viper_ultimate_device(
-    manager: DeviceManager,
-) -> Any | None:
+def find_viper_ultimate_device(manager: DeviceManager) -> RazerMouse | None:
     return next(
         (
             device
@@ -20,10 +17,8 @@ def find_viper_ultimate_device(
     )
 
 
-def get_charging_source(
-    device: Any,
-) -> str:
-    if "(Wired)" in device._name:
+def get_charging_source(device: RazerMouse) -> str:
+    if "(Wired)" in device.name:
         return "wired"
 
     return "wireless"

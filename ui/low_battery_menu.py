@@ -12,8 +12,8 @@ def create_low_battery_menu(
 ) -> list[QAction]:
     low_battery_items: list[QAction] = []
 
-    group = QActionGroup(low_battery_menu)
-    group.setExclusive(True)
+    low_battery_group = QActionGroup(low_battery_menu)
+    low_battery_group.setExclusive(True)
 
     for threshold in range(25, 4, -5):
         item = QAction(
@@ -23,7 +23,7 @@ def create_low_battery_menu(
         )
         item.setCheckable(True)
 
-        group.addAction(item)
+        low_battery_group.addAction(item)
         low_battery_menu.addAction(item)
 
         item.triggered.connect(

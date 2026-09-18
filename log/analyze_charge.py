@@ -23,7 +23,7 @@ class ChargeAnalyzer:
         self,
         log_dir: Path,
         verbose: bool = False,
-    ):
+    ) -> None:
         self.log_dir = log_dir
 
         self.verbose = verbose
@@ -32,16 +32,11 @@ class ChargeAnalyzer:
 
         self.samples_file = log_dir / "battery_charge_samples.json"
 
-
     def _log(self, message: str) -> None:
         if self.verbose:
             print(message, flush=True)
 
-
-    def _load_charge_log(
-        self,
-        input_file: Path,
-    ) -> list[ChargeEntry]:
+    def _load_charge_log(self, input_file: Path) -> list[ChargeEntry]:
         if not input_file.exists():
             raise FileNotFoundError(f"File not found: {input_file.name}")
 
@@ -61,11 +56,7 @@ class ChargeAnalyzer:
                 for row in reader
             ]
 
-
-    def _get_charging_entries(
-        self,
-        entries: list[ChargeEntry],
-    ) -> list[ChargeEntry]:
+    def _get_charging_entries(self, entries: list[ChargeEntry]) -> list[ChargeEntry]:
         charging_entries = [
             entry
             for entry in entries
@@ -77,11 +68,7 @@ class ChargeAnalyzer:
 
         return charging_entries
 
-
-    def _get_charge_level(
-        self,
-        entry: ChargeEntry,
-    ) -> int | None:
+    def _get_charge_level(self, entry: ChargeEntry) -> int | None:
         battery_percent = entry["battery_percent"]
 
         if entry["is_charging"] and battery_percent == EMPTY_CHARGE_LEVEL:
@@ -89,11 +76,7 @@ class ChargeAnalyzer:
 
         return math.floor(battery_percent)
 
-
-    def _build_charge_transitions(
-        self,
-        entries: list[ChargeEntry],
-    ) -> dict[str, int]:
+    def _build_charge_transitions(self, entries: list[ChargeEntry]) -> dict[str, int]:
         charging_entries = self._get_charging_entries(entries)
 
         level_durations: defaultdict[str, list[int]] = defaultdict(list)
@@ -146,24 +129,18 @@ class ChargeAnalyzer:
             )
         )
 
-
     def _load_samples(self) -> dict[str, Any]:
-        samples_file = self.samples_file
+        if not self.samples_file.exists():
+            return {"wired": [], "wireless": []}
 
-        if not samples_file.exists():
-            return {"wired": [], "wireless": [],}
-
-        with samples_file.open(
+        with self.samples_file.open(
             "r",
             encoding="utf-8",
         ) as file:
             return json.load(file)
 
-
     def _load_model(self) -> dict[str, Any]:
-        model_file = self.model_file
-
-        if not model_file.exists():
+        if not self.model_file.exists():
             return {
                 "wired": {
                     "statistics": {
@@ -181,12 +158,11 @@ class ChargeAnalyzer:
                 },
             }
 
-        with model_file.open(
+        with self.model_file.open(
             "r",
             encoding="utf-8",
         ) as file:
             return json.load(file)
-
 
     def _calculate_average_transitions(
         self,
@@ -205,7 +181,6 @@ class ChargeAnalyzer:
 
         return dict(sorted(average_transitions.items(), key=lambda item: int(item[0])))
 
-
     def _sample_already_exists(
         self,
         samples: list[dict[str, Any]],
@@ -216,14 +191,8 @@ class ChargeAnalyzer:
 
         return samples[-1]["transitions"] == transitions
 
-
-    def _save_model(
-        self,
-        data: dict[str, Any],
-    ) -> None:
-        model_file = self.model_file
-
-        with model_file.open(
+    def _save_model(self, data: dict[str, Any]) -> None:
+        with self.model_file.open(
             "w",
             encoding="utf-8",
         ) as file:
@@ -235,14 +204,8 @@ class ChargeAnalyzer:
 
             file.write("\n")
 
-
-    def _save_samples(
-        self,
-        data: dict[str, Any],
-    ) -> None:
-        samples_file = self.samples_file
-
-        with samples_file.open(
+    def _save_samples(self, data: dict[str, Any]) -> None:
+        with self.samples_file.open(
             "w",
             encoding="utf-8",
         ) as file:
@@ -254,11 +217,7 @@ class ChargeAnalyzer:
 
             file.write("\n")
 
-
-    def _format_duration(
-        self,
-        seconds: int,
-    ) -> str:
+    def _format_duration(self, seconds: int) -> str:
         hours, remainder = divmod(seconds, 3600)
 
         minutes, seconds = divmod(remainder, 60)
@@ -267,7 +226,6 @@ class ChargeAnalyzer:
             return f"{hours} h {minutes:02d} min {seconds:02d} s"
 
         return f"{minutes} min {seconds:02d} s"
-
 
     def _analyze_mode(
         self,
@@ -292,7 +250,7 @@ class ChargeAnalyzer:
 
         now = datetime.now().astimezone().isoformat(timespec="seconds")
 
-        samples[mode].append({"created_at": now, "transitions": transitions,})
+        samples[mode].append({"created_at": now, "transitions": transitions})
 
         model[mode]["average"] = self._calculate_average_transitions(samples[mode])
 
@@ -306,7 +264,6 @@ class ChargeAnalyzer:
 
         for level, seconds in model[mode]["average"].items():
             self._log(f"{level:>2} % : {self._format_duration(seconds)}")
-
 
     def analyze(self) -> None:
         samples = self._load_samples()

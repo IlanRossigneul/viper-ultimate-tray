@@ -107,9 +107,7 @@ def create_menu(
 
     polychromatic_action.triggered.connect(
         lambda:
-            subprocess.Popen(
-                ["polychromatic-controller"], start_new_session=True,
-            ),
+            subprocess.Popen(["polychromatic-controller"], start_new_session=True)
     )
 
     input_remapper_action = create_menu_item(
@@ -118,9 +116,7 @@ def create_menu(
 
     input_remapper_action.triggered.connect(
         lambda:
-            subprocess.Popen(
-                ["input-remapper-gtk"], start_new_session=True,
-            ),
+            subprocess.Popen(["input-remapper-gtk"], start_new_session=True)
     )
 
     menu.addAction(name_item)

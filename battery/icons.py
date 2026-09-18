@@ -22,7 +22,7 @@ def get_tray_icon(
     battery: float,
     is_charging: bool,
 ) -> str:
-    battery_level = round(battery)
+    battery_level = int(battery)
 
     suffix = "_c" if is_charging else ""
 

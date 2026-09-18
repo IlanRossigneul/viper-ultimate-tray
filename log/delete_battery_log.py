@@ -9,17 +9,14 @@ class BatteryLogDeleter:
         "battery_wireless_charge_log_cleaned.csv",
     )
 
-
-    def __init__(self, log_dir: Path, verbose: bool = False):
+    def __init__(self, log_dir: Path, verbose: bool = False) -> None:
         self.log_dir = log_dir
 
         self.verbose = verbose
 
-
     def _log(self, message: str) -> None:
         if self.verbose:
             print(message, flush=True)
-
 
     def delete(self) -> None:
         deleted_files = 0

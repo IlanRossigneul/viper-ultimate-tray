@@ -38,9 +38,7 @@ class MouseState:
     low_battery_threshold: int | None
 
 
-def _convert_dpi_stages(
-    stages: list[tuple[int, int]],
-) -> list[DPIStage]:
+def _convert_dpi_stages(stages: list[tuple[int, int]]) -> list[DPIStage]:
     return [
         DPIStage(
             x=dpi_x,
@@ -78,7 +76,7 @@ def get_mouse_state() -> MouseState:
         return _get_disconnected_state()
 
     try:
-        battery = mouse.battery_level
+        battery = mouse._dbus_interfaces["power"].getBattery()
         charging = mouse.is_charging
 
         if battery == -1.0:
