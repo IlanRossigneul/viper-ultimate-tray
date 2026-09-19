@@ -4,7 +4,7 @@ from typing import Any
 def _format_duration(
     remaining_seconds: int,
 ) -> str:
-    if remaining_seconds <= 3600:
+    if remaining_seconds < 3600:
         minutes = round(remaining_seconds / 60)
 
         return f"{minutes} min environ avant pleine recharge"

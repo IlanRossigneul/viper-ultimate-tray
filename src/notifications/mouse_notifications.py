@@ -62,13 +62,13 @@ class MouseNotificationManager:
 
         # Re-arm each low-battery notification once the battery
         # level rises above its corresponding threshold.
-        if state.battery > 30:
+        if state.battery > 31:
             self._low_battery_notified = False
 
-        if state.battery > 15:
+        if state.battery > 16:
             self._very_low_battery_notified = False
 
-        if state.battery > 5:
+        if state.battery > 6:
             self._extremely_low_battery_notified = False
 
         if state.charging is not False:
@@ -80,8 +80,8 @@ class MouseNotificationManager:
             return
 
         if (
-            previous_battery > 30
-            and state.battery <= 30
+            previous_battery > 31
+            and state.battery <= 31
             and not self._low_battery_notified
         ):
             self._notify(
@@ -94,8 +94,8 @@ class MouseNotificationManager:
             self._low_battery_notified = True
 
         if (
-            previous_battery > 15
-            and state.battery <= 15
+            previous_battery > 16
+            and state.battery <= 16
             and not self._very_low_battery_notified
         ):
             self._notify(
@@ -108,8 +108,8 @@ class MouseNotificationManager:
             self._very_low_battery_notified = True
 
         if (
-            previous_battery > 5
-            and state.battery <= 5
+            previous_battery > 6
+            and state.battery <= 6
             and not self._extremely_low_battery_notified
         ):
             self._notify(
