@@ -33,7 +33,7 @@ def _write_json(
 
 def test_load_charge_log_converts_csv_values(tmp_path):
     analyzer = ChargeAnalyzer(tmp_path)
-    input_file = tmp_path / "battery_wireless_charge_log_cleaned.csv"
+    input_file = tmp_path / "battery_wireless_charge_log.csv"
 
     _write_log(
         input_file,
@@ -412,7 +412,7 @@ def test_format_duration_formats_hours_minutes_and_seconds(tmp_path):
 def test_analyze_adds_sample_and_updates_model(tmp_path):
     analyzer = ChargeAnalyzer(tmp_path)
 
-    input_file = tmp_path / "battery_wireless_charge_log_cleaned.csv"
+    input_file = tmp_path / "battery_wireless_charge_log.csv"
 
     _write_log(
         input_file,
@@ -470,7 +470,7 @@ def test_analyze_adds_sample_and_updates_model(tmp_path):
 def test_analyze_does_not_add_duplicate_latest_sample(tmp_path):
     analyzer = ChargeAnalyzer(tmp_path)
 
-    input_file = tmp_path / "battery_wireless_charge_log_cleaned.csv"
+    input_file = tmp_path / "battery_wireless_charge_log.csv"
 
     _write_log(
         input_file,
@@ -536,3 +536,69 @@ def test_analyze_creates_empty_files_when_no_log_exists(tmp_path):
 
     assert model["wired"]["statistics"]["sample_count"] == 0
     assert model["wireless"]["statistics"]["sample_count"] == 0
+
+
+def test_clean_charge_entries_preserves_distinct_float_battery_values(
+    tmp_path,
+):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    entries = [
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:00:00+02:00"),
+            "battery_percent": 20.0,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:01:00+02:00"),
+            "battery_percent": 20.123456,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:02:00+02:00"),
+            "battery_percent": 20.123456,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:03:00+02:00"),
+            "battery_percent": 21.0,
+            "is_charging": True,
+        },
+    ]
+
+    assert analyzer._clean_charge_entries(entries) == entries
+
+
+def test_clean_charge_entries_removes_consecutive_duplicate_states(
+    tmp_path,
+):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    entries = [
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:00:00+02:00"),
+            "battery_percent": 20.0,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:01:00+02:00"),
+            "battery_percent": 20.0,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:02:00+02:00"),
+            "battery_percent": 20.0,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-19T19:03:00+02:00"),
+            "battery_percent": 21.0,
+            "is_charging": True,
+        },
+    ]
+
+    assert analyzer._clean_charge_entries(entries) == [
+        entries[0],
+        entries[2],
+        entries[3],
+    ]

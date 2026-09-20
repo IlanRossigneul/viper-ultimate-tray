@@ -10,8 +10,6 @@ class BatteryLogDeleter:
     LOG_FILES: tuple[str, ...] = (
         "battery_wired_charge_log.csv",
         "battery_wireless_charge_log.csv",
-        "battery_wired_charge_log_cleaned.csv",
-        "battery_wireless_charge_log_cleaned.csv",
     )
 
     def __init__(self, log_dir: Path) -> None:

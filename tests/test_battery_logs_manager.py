@@ -91,10 +91,6 @@ def test_process_battery_logs_runs_steps_in_order(
     manager = LogManager(tmp_path)
     calls: list[str] = []
 
-    def clean() -> bool:
-        calls.append("clean")
-        return True
-
     def analyze() -> bool:
         calls.append("analyze")
         return True
@@ -108,46 +104,13 @@ def test_process_battery_logs_runs_steps_in_order(
         return True
 
     with (
-        patch.object(manager, "clean_battery_logs", side_effect=clean),
         patch.object(manager, "analyze_charge_logs", side_effect=analyze),
         patch.object(manager, "archive_battery_logs", side_effect=archive),
         patch.object(manager, "delete_battery_logs", side_effect=delete),
     ):
         manager._process_battery_logs()
 
-    assert calls == ["clean", "analyze", "archive", "delete"]
-
-
-def test_process_battery_logs_stops_after_clean_failure(
-    tmp_path: Path,
-) -> None:
-    manager = LogManager(tmp_path)
-
-    with (
-        patch.object(
-            manager,
-            "clean_battery_logs",
-            return_value=False,
-        ) as clean,
-        patch.object(
-            manager,
-            "analyze_charge_logs",
-        ) as analyze,
-        patch.object(
-            manager,
-            "archive_battery_logs",
-        ) as archive,
-        patch.object(
-            manager,
-            "delete_battery_logs",
-        ) as delete,
-    ):
-        manager._process_battery_logs()
-
-    clean.assert_called_once()
-    analyze.assert_not_called()
-    archive.assert_not_called()
-    delete.assert_not_called()
+    assert calls == ["analyze", "archive", "delete"]
 
 
 def test_process_battery_logs_stops_after_analyze_failure(
@@ -158,11 +121,6 @@ def test_process_battery_logs_stops_after_analyze_failure(
     with (
         patch.object(
             manager,
-            "clean_battery_logs",
-            return_value=True,
-        ) as clean,
-        patch.object(
-            manager,
             "analyze_charge_logs",
             return_value=False,
         ) as analyze,
@@ -177,7 +135,6 @@ def test_process_battery_logs_stops_after_analyze_failure(
     ):
         manager._process_battery_logs()
 
-    clean.assert_called_once()
     analyze.assert_called_once()
     archive.assert_not_called()
     delete.assert_not_called()
@@ -191,11 +148,6 @@ def test_process_battery_logs_stops_after_archive_failure(
     with (
         patch.object(
             manager,
-            "clean_battery_logs",
-            return_value=True,
-        ) as clean,
-        patch.object(
-            manager,
             "analyze_charge_logs",
             return_value=True,
         ) as analyze,
@@ -211,7 +163,6 @@ def test_process_battery_logs_stops_after_archive_failure(
     ):
         manager._process_battery_logs()
 
-    clean.assert_called_once()
     analyze.assert_called_once()
     archive.assert_called_once()
     delete.assert_not_called()

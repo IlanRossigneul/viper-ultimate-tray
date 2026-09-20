@@ -5,8 +5,6 @@ from battery_logs.delete_battery_log import BatteryLogDeleter
 LOG_FILENAMES = (
     "battery_wired_charge_log.csv",
     "battery_wireless_charge_log.csv",
-    "battery_wired_charge_log_cleaned.csv",
-    "battery_wireless_charge_log_cleaned.csv",
 )
 
 
@@ -39,24 +37,6 @@ def test_delete_wireless_log(tmp_path: Path) -> None:
     BatteryLogDeleter(tmp_path).delete()
 
     assert not input_file.exists()
-
-
-def test_delete_cleaned_logs(tmp_path: Path) -> None:
-    wired_file = _write_log(
-        tmp_path,
-        "battery_wired_charge_log_cleaned.csv",
-        "content\n",
-    )
-    wireless_file = _write_log(
-        tmp_path,
-        "battery_wireless_charge_log_cleaned.csv",
-        "content\n",
-    )
-
-    BatteryLogDeleter(tmp_path).delete()
-
-    assert not wired_file.exists()
-    assert not wireless_file.exists()
 
 
 def test_delete_all_battery_logs(tmp_path: Path) -> None:

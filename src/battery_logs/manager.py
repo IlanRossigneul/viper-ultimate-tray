@@ -5,7 +5,6 @@ from threading import Thread
 from .analyze_charge import ChargeAnalyzer
 from .archive_battery_log import BatteryLogArchiver
 from .battery_logger import BatteryLogger
-from .clean_battery_log import BatteryLogCleaner
 from .delete_battery_log import BatteryLogDeleter
 
 logger = logging.getLogger(__name__)
@@ -18,8 +17,6 @@ class LogManager:
         self.logger: BatteryLogger | None = None
         self.logger_thread: Thread | None = None
 
-        self.cleaner: BatteryLogCleaner = BatteryLogCleaner(self.log_dir)
-
         self.analyzer: ChargeAnalyzer = ChargeAnalyzer(self.log_dir)
 
         self.archiver: BatteryLogArchiver = BatteryLogArchiver(self.log_dir)
@@ -28,17 +25,6 @@ class LogManager:
 
     def is_logger_running(self) -> bool:
         return self.logger_thread is not None and self.logger_thread.is_alive()
-
-    def clean_battery_logs(self) -> bool:
-        try:
-            self.cleaner.clean()
-            return True
-        except Exception as error:  # noqa: BLE001
-            logger.error(
-                "Failed to clean battery logs: %s",
-                error,
-            )
-            return False
 
     def analyze_charge_logs(self) -> bool:
         try:
@@ -74,9 +60,6 @@ class LogManager:
             return False
 
     def _process_battery_logs(self) -> None:
-        if not self.clean_battery_logs():
-            return
-
         if not self.analyze_charge_logs():
             return
 

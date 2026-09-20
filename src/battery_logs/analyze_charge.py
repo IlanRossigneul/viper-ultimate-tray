@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 class ChargeAnalyzer:
     LOG_FILES: tuple[tuple[str, Path], ...] = (
-        ("wired", Path("battery_wired_charge_log_cleaned.csv")),
-        ("wireless", Path("battery_wireless_charge_log_cleaned.csv")),
+        ("wired", Path("battery_wired_charge_log.csv")),
+        ("wireless", Path("battery_wireless_charge_log.csv")),
     )
 
     def __init__(self, log_dir: Path) -> None:
@@ -64,6 +64,40 @@ class ChargeAnalyzer:
             return None
 
         return math.floor(battery_percent)
+
+    def _clean_charge_entries(
+        self,
+        entries: list[ChargeEntry],
+    ) -> list[ChargeEntry]:
+        cleaned_entries: list[ChargeEntry] = []
+
+        for index, entry in enumerate(entries):
+            current_state = (
+                entry["battery_percent"],
+                entry["is_charging"],
+            )
+
+            previous_state = None
+            next_state = None
+
+            if index > 0:
+                previous_entry = entries[index - 1]
+                previous_state = (
+                    previous_entry["battery_percent"],
+                    previous_entry["is_charging"],
+                )
+
+            if index < len(entries) - 1:
+                next_entry = entries[index + 1]
+                next_state = (
+                    next_entry["battery_percent"],
+                    next_entry["is_charging"],
+                )
+
+            if current_state != previous_state or current_state != next_state:
+                cleaned_entries.append(entry)
+
+        return cleaned_entries
 
     def _build_charge_transitions(self, entries: list[ChargeEntry]) -> dict[str, int]:
         charging_entries = self._get_charging_entries(entries)
@@ -225,6 +259,7 @@ class ChargeAnalyzer:
         logger.info("Analyze %s...", mode)
 
         entries = self._load_charge_log(input_file)
+        entries = self._clean_charge_entries(entries)
 
         try:
             transitions = self._build_charge_transitions(entries)
@@ -285,7 +320,7 @@ class ChargeAnalyzer:
             self._save_samples(samples)
             self._save_model(model)
 
-            logger.info("No cleaned battery log found.")
+            logger.info("No battery log found.")
 
             return
 
