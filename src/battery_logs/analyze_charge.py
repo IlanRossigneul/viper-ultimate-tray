@@ -137,8 +137,7 @@ class ChargeAnalyzer:
                 )
 
                 is_initial_partial_transition = (
-                    first_level != EMPTY_CHARGE_LEVEL
-                    and previous_level == first_level
+                    first_level != EMPTY_CHARGE_LEVEL and previous_level == first_level
                 )
 
                 if not is_initial_partial_transition:
