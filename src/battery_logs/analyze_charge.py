@@ -49,14 +49,6 @@ class ChargeAnalyzer:
                 for row in reader
             ]
 
-    def _get_charging_entries(self, entries: list[ChargeEntry]) -> list[ChargeEntry]:
-        charging_entries = [entry for entry in entries if entry["is_charging"]]
-
-        if not charging_entries:
-            raise ValueError("No charging session found.")
-
-        return charging_entries
-
     def _get_charge_level(self, entry: ChargeEntry) -> int | None:
         battery_percent = entry["battery_percent"]
 
@@ -100,43 +92,61 @@ class ChargeAnalyzer:
         return cleaned_entries
 
     def _build_charge_transitions(self, entries: list[ChargeEntry]) -> dict[str, int]:
-        charging_entries = self._get_charging_entries(entries)
+        if not any(entry["is_charging"] for entry in entries):
+            raise ValueError("No charging session found.")
 
         level_durations: defaultdict[str, list[int]] = defaultdict(list)
 
-        previous_entry: ChargeEntry | None = None
         previous_level: int | None = None
         first_level: int | None = None
+        charging_started_at: datetime | None = None
+        accumulated_duration = 0
 
-        for entry in charging_entries:
+        for entry in entries:
             current_level = self._get_charge_level(entry)
 
             if current_level is None:
                 continue
 
-            if previous_entry is None:
-                previous_entry = entry
-                previous_level = current_level
-                first_level = current_level
+            if not entry["is_charging"]:
+                if charging_started_at is not None:
+                    accumulated_duration += int(
+                        (entry["timestamp"] - charging_started_at).total_seconds()
+                    )
+                    charging_started_at = None
+
                 continue
 
-            assert previous_level is not None
+            if previous_level is None:
+                previous_level = current_level
+                first_level = current_level
+                charging_started_at = entry["timestamp"]
+                continue
+
             assert first_level is not None
 
+            if charging_started_at is None:
+                charging_started_at = entry["timestamp"]
+                continue
+
             if current_level > previous_level:
-                duration = int(
-                    (entry["timestamp"] - previous_entry["timestamp"]).total_seconds()
+                assert charging_started_at is not None
+
+                accumulated_duration += int(
+                    (entry["timestamp"] - charging_started_at).total_seconds()
                 )
 
                 is_initial_partial_transition = (
-                    first_level != EMPTY_CHARGE_LEVEL and previous_level == first_level
+                    first_level != EMPTY_CHARGE_LEVEL
+                    and previous_level == first_level
                 )
 
                 if not is_initial_partial_transition:
-                    level_durations[str(previous_level)].append(duration)
+                    level_durations[str(previous_level)].append(accumulated_duration)
 
-                previous_entry = entry
                 previous_level = current_level
+                charging_started_at = entry["timestamp"]
+                accumulated_duration = 0
 
         if not level_durations:
             raise ValueError("No charge level durations found.")

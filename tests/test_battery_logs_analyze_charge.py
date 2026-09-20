@@ -71,48 +71,6 @@ def test_load_charge_log_raises_when_file_does_not_exist(tmp_path):
         )
 
 
-def test_get_charging_entries_returns_only_charging_entries(tmp_path):
-    analyzer = ChargeAnalyzer(tmp_path)
-
-    entries = [
-        {
-            "timestamp": datetime.fromisoformat("2026-09-19T19:00:00+02:00"),
-            "battery_percent": 40.5,
-            "is_charging": False,
-        },
-        {
-            "timestamp": datetime.fromisoformat("2026-09-19T19:01:00+02:00"),
-            "battery_percent": 40.8,
-            "is_charging": True,
-        },
-        {
-            "timestamp": datetime.fromisoformat("2026-09-19T19:02:00+02:00"),
-            "battery_percent": 41.2,
-            "is_charging": True,
-        },
-    ]
-
-    assert analyzer._get_charging_entries(entries) == entries[1:]
-
-
-def test_get_charging_entries_raises_when_no_charging_entry_exists(tmp_path):
-    analyzer = ChargeAnalyzer(tmp_path)
-
-    entries = [
-        {
-            "timestamp": datetime.fromisoformat("2026-09-19T19:00:00+02:00"),
-            "battery_percent": 40.5,
-            "is_charging": False,
-        },
-    ]
-
-    with pytest.raises(
-        ValueError,
-        match="No charging session found.",
-    ):
-        analyzer._get_charging_entries(entries)
-
-
 def test_get_charge_level_floors_raw_battery_value(tmp_path):
     analyzer = ChargeAnalyzer(tmp_path)
 
@@ -278,6 +236,61 @@ def test_build_charge_transitions_ignores_zero_percent_while_charging(
 
     assert analyzer._build_charge_transitions(entries) == {
         "2": 180,
+    }
+
+
+def test_build_charge_transitions_excludes_paused_time(
+    tmp_path,
+):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    entries = [
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:34:23+02:00"),
+            "battery_percent": 0.0,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:34:25+02:00"),
+            "battery_percent": 0.7843137254901961,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:34:53+02:00"),
+            "battery_percent": 0.7843137254901961,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:34:54+02:00"),
+            "battery_percent": 0.7843137254901961,
+            "is_charging": False,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:34:55+02:00"),
+            "battery_percent": 0.7843137254901961,
+            "is_charging": False,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:34:56+02:00"),
+            "battery_percent": 0.7843137254901961,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:36:29+02:00"),
+            "battery_percent": 0.7843137254901961,
+            "is_charging": True,
+        },
+        {
+            "timestamp": datetime.fromisoformat("2026-09-20T09:36:30+02:00"),
+            "battery_percent": 1.9607843137254901,
+            "is_charging": True,
+        },
+    ]
+
+    cleaned_entries = analyzer._clean_charge_entries(entries)
+
+    assert analyzer._build_charge_transitions(cleaned_entries) == {
+        "0": 123,
     }
 
 
