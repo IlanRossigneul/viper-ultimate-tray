@@ -109,6 +109,28 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# KDE Plasma version
+# ---------------------------------------------------------------------------
+
+if ! command -v plasmashell >/dev/null 2>&1; then
+    check_failed "KDE Plasma 6 or newer"
+fi
+
+PLASMA_VERSION="$(plasmashell --version 2>/dev/null | sed -n 's/.* //p')"
+
+if [[ -z "$PLASMA_VERSION" ]]; then
+    check_failed "KDE Plasma 6 or newer"
+fi
+
+PLASMA_MAJOR="${PLASMA_VERSION%%.*}"
+
+if [[ "$PLASMA_MAJOR" =~ ^[0-9]+$ ]] && (( PLASMA_MAJOR >= 6 )); then
+    check_passed "KDE Plasma $PLASMA_VERSION"
+else
+    check_failed "KDE Plasma 6 or newer"
+fi
+
+# ---------------------------------------------------------------------------
 # Required installation tools
 # ---------------------------------------------------------------------------
 
@@ -431,10 +453,9 @@ while true; do
 Type=Application
 Name=Viper Ultimate Tray
 Comment=Viper Ultimate tray indicator
-Exec=viper-ultimate-tray
+Exec=$BIN_DIR/viper-ultimate-tray
 Icon=$INSTALL_DIR/icons/menu/mouse.svg
 Terminal=false
-X-GNOME-Autostart-enabled=true
 EOF
 
             chmod 644 "$AUTOSTART_FILE"
