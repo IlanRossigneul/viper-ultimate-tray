@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from PySide6.QtCore import QLockFile
 
 from app.application import Application
 from razer.mouse_state import MouseState
@@ -61,6 +62,54 @@ def test_parse_args_rejects_conflicting_log_levels() -> None:
 
     with pytest.raises(SystemExit):
         application._parse_args(["--info", "--debug"])
+
+
+def test_acquire_instance_lock_succeeds() -> None:
+    application = Application()
+
+    application._instance_lock = MagicMock()
+
+    application._instance_lock.tryLock.return_value = True
+
+    assert application._acquire_instance_lock()
+
+    application._instance_lock.tryLock.assert_called_once_with(0)
+
+
+def test_acquire_instance_lock_fails_when_another_instance_is_running(
+    caplog,
+) -> None:
+    application = Application()
+
+    application._instance_lock = MagicMock()
+
+    application._instance_lock.tryLock.return_value = False
+
+    with caplog.at_level(logging.WARNING):
+        assert not application._acquire_instance_lock()
+
+    application._instance_lock.tryLock.assert_called_once_with(0)
+
+    assert "Another Viper Ultimate Tray instance is already running." in caplog.text
+
+
+def test_instance_lock_allows_only_one_holder(tmp_path) -> None:
+    lock_path = tmp_path / "viper-ultimate-tray.lock"
+
+    first_lock = QLockFile(str(lock_path))
+    second_lock = QLockFile(str(lock_path))
+
+    first_lock.setStaleLockTime(0)
+    second_lock.setStaleLockTime(0)
+
+    assert first_lock.tryLock(0)
+    assert not second_lock.tryLock(0)
+
+    first_lock.unlock()
+
+    assert second_lock.tryLock(0)
+
+    second_lock.unlock()
 
 
 def test_update_logger_menu_state_disables_start_and_enables_stop_when_running() -> (

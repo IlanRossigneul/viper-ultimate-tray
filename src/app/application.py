@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 from KStatusNotifierItem import KStatusNotifierItem
+from PySide6.QtCore import QLockFile
 from PySide6.QtWidgets import QApplication
 
 from battery.models import load_charge_models
@@ -10,6 +11,7 @@ from battery_logs.manager import LogManager
 from config.paths import (
     BATTERY_LOGS_DIR,
     ICON_DIR,
+    INSTANCE_LOCK_FILE,
     MENU_BATTERY_ICON_DIR,
     MENU_ICON_DIR,
     MENU_LOG_ICON_DIR,
@@ -49,6 +51,9 @@ class Application:
         self.menu_log_icon_dir = MENU_LOG_ICON_DIR
         self.tray_icon_dir = TRAY_ICON_DIR
 
+        self._instance_lock = QLockFile(str(INSTANCE_LOCK_FILE))
+        self._instance_lock.setStaleLockTime(0)
+
     def _parse_args(
         self,
         args: list[str],
@@ -75,6 +80,17 @@ class Application:
         parsed = parser.parse_args(args)
 
         return parsed.log_level if parsed.log_level is not None else logging.INFO
+
+    def _acquire_instance_lock(self) -> bool:
+        """Acquire the application instance lock."""
+
+        if self._instance_lock.tryLock(0):
+            return True
+
+        logger.warning(
+            "Another Viper Ultimate Tray instance is already running.",
+        )
+        return False
 
     def _create_status_view(
         self,
@@ -152,6 +168,9 @@ class Application:
     def run(self, args: list[str]) -> int:
         log_level = self._parse_args(args)
         setup_logger(log_level)
+
+        if not self._acquire_instance_lock():
+            return 0
 
         app = QApplication.instance()
 
@@ -239,4 +258,7 @@ class Application:
 
         self.indicator.setContextMenu(self.menu_widgets.menu)
 
-        return app.exec()
+        try:
+            return app.exec()
+        finally:
+            self._instance_lock.unlock()

@@ -13,3 +13,5 @@ MENU_LOG_ICON_DIR = MENU_ICON_DIR / "log"
 TRAY_ICON_DIR = ICON_DIR / "tray"
 
 MODEL_FILE = BATTERY_LOGS_DIR / "battery_charge_model.json"
+
+INSTANCE_LOCK_FILE = BASE_DIR / "viper-ultimate-tray.lock"
