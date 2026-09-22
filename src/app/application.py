@@ -156,11 +156,16 @@ class Application:
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
 
+        if self.menu_widgets is not None:
+            self.menu_widgets.battery_logger_start_action.setEnabled(False)
+
         if self.notification_manager is not None:
             self.notification_manager.reset()
 
     def _handle_connected(self, state: MouseState) -> None:
         self.status_view.show_connected(state)
+
+        self._update_logger_menu_state()
 
         if self.notification_manager is not None:
             self.notification_manager.update(state)

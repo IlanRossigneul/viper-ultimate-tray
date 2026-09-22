@@ -276,26 +276,36 @@ def test_set_low_battery_threshold_logs_error_when_controller_fails() -> None:
     )
 
 
-def test_handle_disconnection_updates_status_and_resets_notifications() -> None:
+def test_handle_disconnection_disables_logger_start_and_resets_notifications() -> None:
     application = Application()
     application.status_view = MagicMock()
+    application.menu_widgets = MagicMock()
     application.notification_manager = MagicMock()
 
     application._handle_disconnection()
 
     application.status_view.show_disconnected.assert_called_once_with()
+    application.menu_widgets.battery_logger_start_action.setEnabled.assert_called_once_with(
+        False,
+    )
+    application.menu_widgets.battery_logger_stop_action.setEnabled.assert_not_called()
     application.notification_manager.reset.assert_called_once_with()
 
 
-def test_handle_connected_updates_status_and_notifications() -> None:
+def test_handle_connected_updates_logger_menu_state() -> None:
     application = Application()
     application.status_view = MagicMock()
     application.notification_manager = MagicMock()
     state = _connected_state()
 
-    application._handle_connected(state)
+    with patch.object(
+        application,
+        "_update_logger_menu_state",
+    ) as update_logger_menu_state:
+        application._handle_connected(state)
 
     application.status_view.show_connected.assert_called_once_with(state)
+    update_logger_menu_state.assert_called_once_with()
     application.notification_manager.update.assert_called_once_with(state)
 
 
