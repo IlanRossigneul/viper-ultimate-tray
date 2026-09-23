@@ -63,6 +63,7 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 - OpenRazer for communication with the mouse;
 - A non-root user account;
 - `pacman`;
+- `paru`;
 - `sudo`;
 - `vercmp`.
 
@@ -407,7 +408,18 @@ The reported `vulture` warnings have been reviewed and are known false positives
 
 ## Third-party assets
 
-The tray battery icons in `src/icons/tray/` are based on icons from [RazerBatteryTray](https://github.com/HoroTW/RazerBatteryTray) by HoroTW.
+The following menu icons are provided by [Polychromatic](https://github.com/polychromatic/polychromatic):
+
+- `src/icons/menu/dpi.svg`;
+- `src/icons/menu/fast.svg`;
+- `src/icons/menu/hibernation.svg`;
+- `src/icons/menu/mouse.svg`;
+- `src/icons/menu/openrazer.svg`;
+- `src/icons/menu/polychromatic.svg`;
+- `src/icons/menu/slow.svg`;
+- `src/icons/menu/stages-dpi.svg`.
+
+The `src/icons/menu/input-remapper.svg` icon is provided by [Input Remapper](https://github.com/sezanzeb/input-remapper).
 
 ## License
 

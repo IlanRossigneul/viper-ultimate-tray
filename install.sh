@@ -15,7 +15,20 @@ DEPENDENCIES=(
     python-gobject
     libnotify
     python-openrazer
+    noto-fonts
 )
+
+AUR_DEPENDENCIES=(
+    polychromatic
+)
+
+INPUT_REMAPPER_PACKAGES=(
+    input-remapper
+    input-remapper-git
+    input-remapper-bin
+)
+
+INPUT_REMAPPER_INSTALL_PACKAGE="input-remapper-git"
 
 declare -A MIN_VERSIONS=(
     [python]="3.11"
@@ -60,21 +73,27 @@ require_file() {
 
 check_dependency() {
     local package="$1"
-    local minimum="${MIN_VERSIONS[$package]}"
+    local minimum="${MIN_VERSIONS[$package]:-}"
     local installed
 
     if ! pacman -Q "$package" >/dev/null 2>&1; then
-        printf '  ✗ %s (missing, requires >= %s)\n' \
-            "$package" "$minimum"
+        if [[ -n "$minimum" ]]; then
+            printf '  ✗ %s (missing, requires >= %s)\n' \
+                "$package" "$minimum"
+        else
+            printf '  ✗ %s (missing)\n' "$package"
+        fi
         return 1
     fi
 
     installed="$(pacman -Q "$package" | awk '{print $2}')"
 
-    if (( $(vercmp "$installed" "$minimum") < 0 )); then
-        printf '  ✗ %s %s (requires >= %s)\n' \
-            "$package" "$installed" "$minimum"
-        return 1
+    if [[ -n "$minimum" ]]; then
+        if (( $(vercmp "$installed" "$minimum") < 0 )); then
+            printf '  ✗ %s %s (requires >= %s)\n' \
+                "$package" "$installed" "$minimum"
+            return 1
+        fi
     fi
 
     printf '  ✓ %s %s\n' "$package" "$installed"
@@ -135,6 +154,7 @@ fi
 # ---------------------------------------------------------------------------
 
 require_command pacman "pacman"
+require_command paru "paru"
 require_command sudo "sudo"
 require_command vercmp "vercmp"
 
@@ -274,6 +294,97 @@ else
 
         info "OpenRazer refreshed successfully."
     fi
+fi
+
+# ---------------------------------------------------------------------------
+# AUR dependencies
+# ---------------------------------------------------------------------------
+
+info ""
+info "Checking AUR dependencies..."
+
+aur_dependencies_satisfied=0
+
+for package in "${AUR_DEPENDENCIES[@]}"; do
+    if ! pacman -Q "$package" >/dev/null 2>&1; then
+        printf '  ✗ %s (missing)\n' "$package"
+        aur_dependencies_satisfied=1
+    else
+        installed="$(pacman -Q "$package" | awk '{print $2}')"
+        printf '  ✓ %s %s\n' "$package" "$installed"
+    fi
+done
+
+if (( aur_dependencies_satisfied == 0 )); then
+    info ""
+    info "AUR dependencies are satisfied."
+else
+    info ""
+    info "Installing AUR dependencies..."
+
+    paru -S --needed "${AUR_DEPENDENCIES[@]}"
+
+    info ""
+    info "Rechecking AUR dependencies..."
+
+    for package in "${AUR_DEPENDENCIES[@]}"; do
+        if ! pacman -Q "$package" >/dev/null 2>&1; then
+            check_failed "AUR dependency validation failed: $package"
+        fi
+
+        installed="$(pacman -Q "$package" | awk '{print $2}')"
+        printf '  ✓ %s %s\n' "$package" "$installed"
+    done
+
+    info ""
+    info "AUR dependencies installed successfully."
+fi
+
+# ---------------------------------------------------------------------------
+# Input Remapper
+# ---------------------------------------------------------------------------
+
+info ""
+info "Checking Input Remapper..."
+
+input_remapper_package=""
+
+for package in "${INPUT_REMAPPER_PACKAGES[@]}"; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+        input_remapper_package="$package"
+        break
+    fi
+done
+
+if [[ -n "$input_remapper_package" ]]; then
+    installed="$(pacman -Q "$input_remapper_package" | awk '{print $2}')"
+    printf '  ✓ %s %s\n' "$input_remapper_package" "$installed"
+else
+    printf '  ✗ Input Remapper (missing)\n'
+
+    info ""
+    info "Installing Input Remapper..."
+    paru -S --needed "$INPUT_REMAPPER_INSTALL_PACKAGE"
+
+    info ""
+    info "Rechecking Input Remapper..."
+
+    for package in "${INPUT_REMAPPER_PACKAGES[@]}"; do
+        if pacman -Q "$package" >/dev/null 2>&1; then
+            input_remapper_package="$package"
+            break
+        fi
+    done
+
+    if [[ -z "$input_remapper_package" ]]; then
+        check_failed "Input Remapper validation failed"
+    fi
+
+    installed="$(pacman -Q "$input_remapper_package" | awk '{print $2}')"
+    printf '  ✓ %s %s\n' "$input_remapper_package" "$installed"
+
+    info ""
+    info "Input Remapper installed successfully."
 fi
 
 # ---------------------------------------------------------------------------

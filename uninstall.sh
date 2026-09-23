@@ -22,7 +22,18 @@ DEPENDENCIES=(
     python-gobject
     libnotify
     python-openrazer
+    noto-fonts
     openrazer-daemon
+)
+
+AUR_DEPENDENCIES=(
+    polychromatic
+)
+
+INPUT_REMAPPER_PACKAGES=(
+    input-remapper
+    input-remapper-git
+    input-remapper-bin
 )
 
 info() {
@@ -146,8 +157,29 @@ for package in "${DEPENDENCIES[@]}"; do
 done
 
 info ""
-info "OpenRazer may be used by other Razer devices or applications."
-info "Review the dependency before removing it."
+info "The following commands can be used to remove the Viper Ultimate Tray AUR dependencies individually:"
+info ""
+
+for package in "${AUR_DEPENDENCIES[@]}"; do
+    printf '  paru -Rns %s\n' "$package"
+done
+
+input_remapper_package=""
+
+for package in "${INPUT_REMAPPER_PACKAGES[@]}"; do
+    if pacman -Q "$package" >/dev/null 2>&1; then
+        input_remapper_package="$package"
+        break
+    fi
+done
+
+if [[ -n "$input_remapper_package" ]]; then
+    printf '  paru -Rns %s\n' "$input_remapper_package"
+fi
+
+info ""
+info "OpenRazer, Polychromatic, and Input Remapper may be used by other applications or devices."
+info "Review the dependencies before removing them."
 read -r -p "Press Enter to continue..."
 
 # ---------------------------------------------------------------------------
