@@ -39,3 +39,6 @@ src/battery_logs/archive/
 
 # Local logs
 *.log
+
+# SVG source
+src/icons/menu/battery/battery.svg

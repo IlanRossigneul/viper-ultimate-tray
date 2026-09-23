@@ -1,45 +1,52 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <svg
-   height="24"
-   viewBox="0 0 24 24"
-   width="24"
-   version="1.1"
-   id="svg1"
-   sodipodi:docname="battery-charging-3.svg"
-   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg">
-  <defs
-     id="defs1" />
-  <sodipodi:namedview
-     id="namedview1"
-     pagecolor="#ffffff"
-     bordercolor="#000000"
-     borderopacity="0.25"
-     inkscape:showpageshadow="2"
-     inkscape:pageopacity="0.0"
-     inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="33.541667"
-     inkscape:cx="12"
-     inkscape:cy="12"
-     inkscape:window-width="1920"
-     inkscape:window-height="1014"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
-     inkscape:window-maximized="1"
-     inkscape:current-layer="svg1" />
-  <!-- Font Awesome Free 5.15 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0) - This icon is remixed from the original -->
-  <path
-     d="m19.7 8.7v2.2h1.1v2.2h-1.1v2.2h-16.5v-6.6zm.55-2.2h-17.6c-.91128 0-1.65.73872-1.65 1.65v7.7c0 .91128.73872 1.65 1.65 1.65h17.6c.91128 0 1.65-.73871 1.65-1.65v-.55h.275c.45564 0 .825-.36936.825-.825v-4.95c0-.45564-.36936-.825-.825-.825h-.275v-.55c0-.91128-.73872-1.65-1.65-1.65zm-4.438 3.3h-11.512v4.4h11.512z"
-     fill="#00ff00"
-     stroke-width=".034375"
-     id="path1" />
-  <path
-     d="m 10.125791,13.764494 c 0,-0.0056 0.358867,-0.337065 0.797481,-0.736598 l 0.79748,-0.726423 -0.401895,-0.402791 -0.401897,-0.402791 1.043654,-0.455992 c 0.57401,-0.250796 1.24906,-0.546325 1.500114,-0.656729 0.260307,-0.114478 0.437991,-0.177938 0.413481,-0.147664 -0.02363,0.02917 -0.325375,0.388633 -0.670525,0.798777 l -0.627553,0.745714 0.22997,0.254842 c 0.126487,0.140171 0.281979,0.313802 0.345542,0.385868 l 0.115576,0.131023 -1.419633,0.553909 c -1.706642,0.665894 -1.721791,0.671687 -1.721791,0.658855 z"
-     style="mix-blend-mode:normal;fill:#ffff00;fill-opacity:1;stroke:#000000;stroke-width:0.466357;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:0;paint-order:fill markers stroke"
-     id="path1-5"
-     sodipodi:nodetypes="cscccscccccccscc" />
+    xmlns="http://www.w3.org/2000/svg"
+    width="256"
+    height="256"
+    viewBox="0 0 256 256"
+>
+    <!-- Battery body -->
+    <rect
+        id="battery-outline"
+        x="7.5"
+        y="78"
+        width="225"
+        height="100"
+        rx="25"
+        fill="none"
+        stroke="#00FF00"
+        stroke-width="15"
+    />
+
+    <!-- Battery terminal -->
+    <rect
+        id="battery-terminal"
+        x="232"
+        y="103"
+        width="24"
+        height="50"
+        rx="10"
+        fill="#00FF00"
+    />
+
+    <!-- 75% battery level -->
+    <rect
+        id="battery-level-75"
+        x="30"
+        y="98"
+        width="135"
+        height="60"
+        rx="5"
+        fill="#00FF00"
+    />
+
+    <!-- Charging bolt -->
+    <path
+        id="battery-bolt"
+        d="M 125.82 58 L 74.14 123.90 H 104.85 L 88.00 198 L 153.63 118.67 H 125.82 Z"
+        fill="#FFFF00"
+        stroke="#000000"
+        stroke-width="3"
+        stroke-linejoin="round"
+    />
 </svg>
