@@ -32,10 +32,10 @@ def test_get_battery_icon_uses_charging_prefix() -> None:
 @pytest.mark.parametrize(
     ("battery", "charging", "expected"),
     [
-        (42.9, False, "bat_42.png"),
-        (42.9, True, "bat_42_c.png"),
-        (0, False, "bat_0.png"),
-        (100, True, "bat_100_c.png"),
+        (42.9, False, "battery-42.svg"),
+        (42.9, True, "battery-charging-42.svg"),
+        (0, False, "battery-0.svg"),
+        (100, True, "battery-charging-100.svg"),
     ],
 )
 def test_get_tray_icon_uses_integer_battery_and_charging_suffix(

@@ -24,6 +24,6 @@ def get_tray_icon(
 ) -> str:
     battery_level = int(battery)
 
-    suffix = "_c" if is_charging else ""
+    prefix = "battery-charging" if is_charging else "battery"
 
-    return f"bat_{battery_level}{suffix}.png"
+    return f"{prefix}-{battery_level}.svg"

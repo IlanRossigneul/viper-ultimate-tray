@@ -2,7 +2,9 @@ from pathlib import Path
 from typing import Any
 
 from KStatusNotifierItem import KStatusNotifierItem
-from PySide6.QtGui import QAction, QIcon, QPixmap
+from PySide6.QtCore import QRectF
+from PySide6.QtGui import QAction, QIcon, QImage, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 
 from battery.estimation import get_charge_estimation
 from battery.icons import get_battery_icon, get_tray_icon
@@ -47,6 +49,24 @@ class StatusView:
         self.idle_items = idle_items
 
         self.low_battery_items = low_battery_items
+
+    @staticmethod
+    def load_svg_pixmap(path: Path) -> QPixmap:
+        """Render an SVG file into a pixmap."""
+        renderer = QSvgRenderer(str(path))
+
+        if not renderer.isValid():
+            raise ValueError(f"Invalid SVG icon: {path}")
+
+        size = renderer.defaultSize()
+        image = QImage(size, QImage.Format_ARGB32)
+        image.fill(0)
+
+        painter = QPainter(image)
+        renderer.render(painter, QRectF(image.rect()))
+        painter.end()
+
+        return QPixmap.fromImage(image)
 
     def show_disconnected(self) -> None:
         self.indicator.setIconByPixmap(QPixmap(str(self.menu_icon_dir / "mouse.svg")))
@@ -99,7 +119,9 @@ class StatusView:
             return
 
         self.indicator.setIconByPixmap(
-            QPixmap(str(self.tray_icon_dir / get_tray_icon(battery, is_charging)))
+            self.load_svg_pixmap(
+                self.tray_icon_dir / get_tray_icon(battery, is_charging)
+            )
         )
 
         for item in [

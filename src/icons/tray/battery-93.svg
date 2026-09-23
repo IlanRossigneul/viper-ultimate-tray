@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='utf-8'?>
+<ns0:svg xmlns:ns0="http://www.w3.org/2000/svg" xmlns:ns1="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:ns2="http://www.inkscape.org/namespaces/inkscape" width="256" height="256" viewBox="0 0 256 256" version="1.1" id="svg1" ns1:docname="battery.svg" ns2:version="1.4.4 (dcaf3e7d9e, 2026-05-05)">
+    <ns0:defs id="defs1" />
+    <ns1:namedview id="namedview1" pagecolor="#ffffff" bordercolor="#000000" borderopacity="0.25" ns2:showpageshadow="2" ns2:pageopacity="0.0" ns2:pagecheckerboard="0" ns2:deskcolor="#d1d1d1" ns2:zoom="3.1445312" ns2:cx="128" ns2:cy="128" ns2:window-width="1920" ns2:window-height="1014" ns2:window-x="0" ns2:window-y="0" ns2:window-maximized="1" ns2:current-layer="svg1" />
+    <ns0:circle id="battery-interior" cx="128" cy="128" fill="none" style="display:inline;stroke-width:1.0416" r="108" />
+    <ns0:circle id="battery-outline" cx="128" cy="128" r="118" fill="none" stroke="#4D4D4D" stroke-width="20" style="display:inline" />
+    <ns0:path id="battery-progress" d="M 128.000000 10.000000 A 118 118 0 1 1 77.758044 21.230408" fill="none" stroke="#00FF00" stroke-width="20" stroke-linecap="butt" stroke-linejoin="round" style="display:inline" />
+    <ns0:text id="battery-percentage" x="128" y="171.453125" fill="#ffffff" font-family="'Noto Sans'" font-size="112px" font-weight="700" text-anchor="middle" dominant-baseline="middle">93</ns0:text>
+</ns0:svg>
