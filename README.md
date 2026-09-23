@@ -79,7 +79,12 @@ The following packages are managed automatically:
 - `python-gobject` >= 3.44;
 - `libnotify` >= 0.8.0;
 - `python-openrazer` >= 3.12.2;
-- `openrazer-daemon` >= 3.12.2.
+- `openrazer-daemon` >= 3.12.2;
+- `noto-fonts`;
+- `polychromatic`;
+- one of `input-remapper`, `input-remapper-git`, or `input-remapper-bin`.
+
+If no Input Remapper package is already installed, the installer installs `input-remapper-git`.
 
 If `openrazer-daemon` is installed or updated, the installer automatically refreshes the OpenRazer udev rules and restarts the user daemon. A system reboot is not required.
 
@@ -140,7 +145,7 @@ The uninstaller:
 
 The uninstaller does not remove the dependencies installed for Viper Ultimate Tray automatically.
 
-At the end of the uninstallation, the uninstaller displays the optional `pacman` commands that can be used to remove these dependencies manually.
+At the end of the uninstallation, the uninstaller displays the optional `pacman` and `paru` commands that can be used to remove these dependencies manually.
 
 ## Tray / Menu
 
@@ -152,23 +157,28 @@ Its appearance reflects the current battery level and whether the mouse is charg
 
 <!-- markdownlint-disable MD033 -->
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/tray/bat_50.png" width="20" alt="Battery not charging and between 50% and 100%">
-  <span>>= 50% &amp; <= 100%</span>
+  <img src="docs/icons/battery-31.png" width="20" alt="Battery not charging and between 31% and 100%">
+  <span>31–100 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/tray/bat_20.png" width="20" alt="Battery not charging and between 20% and 50%">
-  <span>>= 20% &amp; < 50%</span>
+  <img src="docs/icons/battery-16.png" width="20" alt="Battery not charging and between 16% and 30%">
+  <span>16–30 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/tray/bat_1.png" width="20" alt="Battery not charging and below 20%">
-  <span>>= 0% &amp; < 20%</span>
+  <img src="docs/icons/battery-6.png" width="20" alt="Battery not charging and between 6% and 15%">
+  <span>6–15 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/tray/bat_100_c.png" width="20" alt="Battery charging">
-  <span>>= 0% &amp; <= 100%</span>
+  <img src="docs/icons/battery-1.png" width="20" alt="Battery not charging and between 0% and 5%">
+  <span>0–5 %</span>
+</div>
+
+<div style="display: flex; align-items: center; gap: 30px;">
+  <img src="docs/icons/battery-charging-100.png" width="20" alt="Battery charging">
+  <span>0–100 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
@@ -206,28 +216,28 @@ The battery icon reflects the current charge level.
 
 <!-- markdownlint-disable MD033 -->
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-4.svg" alt="Battery not charging between 75% and 100%">
-  <span>> 75% &amp; <= 100%</span>
+  <img src="src/icons/menu/battery/battery-4.svg" width="32" alt="Battery not charging between 76% and 100%">
+  <span>76–100 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-3.svg" alt="Battery not charging between 50% and 75%">
-  <span>> 50% &amp; <= 75%</span>
+  <img src="src/icons/menu/battery/battery-3.svg" width="32" alt="Battery not charging between 51% and 75%">
+  <span>51–75 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-2.svg" alt="Battery not charging between 25% and 50%">
-  <span>> 25% &amp; <= 50%</span>
+  <img src="src/icons/menu/battery/battery-2.svg" width="32" alt="Battery not charging between 26% and 50%">
+  <span>26–50 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-1.svg" alt="Battery not charging between 10% and 25%">
-  <span>> 10% &amp; <= 25%</span>
+  <img src="src/icons/menu/battery/battery-1.svg" width="32" alt="Battery not charging between 11% and 25%">
+  <span>11–25 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-0.svg" alt="Battery not charging at or below 10%">
-  <span>>= 0% &amp; <= 10%</span>
+  <img src="src/icons/menu/battery/battery-0.svg" width="32" alt="Battery not charging between 0% and 10%">
+  <span>0–10 %</span>
 </div>
 <!-- markdownlint-enable MD033 -->
 
@@ -243,28 +253,28 @@ The battery icon reflects the current charge level and displays a yellow lightni
 
 <!-- markdownlint-disable MD033 -->
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-4.svg" alt="Battery charging between 75% and 100%">
-  <span>> 75% &amp; <= 100%</span>
+  <img src="src/icons/menu/battery/battery-charging-4.svg" width="32" alt="Battery charging between 76% and 100%">
+  <span>76–100 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-3.svg" alt="Battery charging between 50% and 75%">
-  <span>> 50% &amp; <= 75%</span>
+  <img src="src/icons/menu/battery/battery-charging-3.svg" width="32" alt="Battery charging between 51% and 75%">
+  <span>51–75 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-2.svg" alt="Battery charging between 25% and 50%">
-  <span>> 25% &amp; <= 50%</span>
+  <img src="src/icons/menu/battery/battery-charging-2.svg" width="32" alt="Battery charging between 26% and 50%">
+  <span>26–50 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-1.svg" alt="Battery charging between 10% and 25%">
-  <span>> 10% &amp; <= 25%</span>
+  <img src="src/icons/menu/battery/battery-charging-1.svg" width="32" alt="Battery charging between 11% and 25%">
+  <span>11–25 %</span>
 </div>
 
 <div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-0.svg" alt="Battery charging at or below 10%">
-  <span>>= 0% &amp; <= 10%</span>
+  <img src="src/icons/menu/battery/battery-charging-0.svg" width="32" alt="Battery charging between 0% and 10%">
+  <span>0–10 %</span>
 </div>
 <!-- markdownlint-enable MD033 -->
 
