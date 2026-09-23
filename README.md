@@ -215,30 +215,9 @@ When the mouse is not charging, the tray menu displays the current battery level
 The battery icon reflects the current charge level.
 
 <!-- markdownlint-disable MD033 -->
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-4.svg" width="32" alt="Battery not charging between 76% and 100%">
-  <span>76–100 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-3.svg" width="32" alt="Battery not charging between 51% and 75%">
-  <span>51–75 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-2.svg" width="32" alt="Battery not charging between 26% and 50%">
-  <span>26–50 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-1.svg" width="32" alt="Battery not charging between 11% and 25%">
-  <span>11–25 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-0.svg" width="32" alt="Battery not charging between 0% and 10%">
-  <span>0–10 %</span>
-</div>
+|<img src="src/icons/menu/battery/battery-4.svg" width="32" alt="Battery not charging between 76% and 100%">|<img src="src/icons/menu/battery/battery-3.svg" width="32" alt="Battery not charging between 51% and 75%">|<img src="src/icons/menu/battery/battery-2.svg" width="32" alt="Battery not charging between 26% and 50%">|<img src="src/icons/menu/battery/battery-1.svg" width="32" alt="Battery not charging between 11% and 25%">|<img src="src/icons/menu/battery/battery-0.svg" width="32" alt="Battery not charging between 0% and 10%">|
+|:--------:|:--------:|:--------:|:--------:|:--------:|
+|76–100 %|51–75 %|26–50 %|11–25 %|0–10 %|
 <!-- markdownlint-enable MD033 -->
 
 ### Charging
@@ -252,30 +231,9 @@ The application maintains separate models for wired and wireless charging, allow
 The battery icon reflects the current charge level and displays a yellow lightning bolt to indicate that the battery is charging.
 
 <!-- markdownlint-disable MD033 -->
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-4.svg" width="32" alt="Battery charging between 76% and 100%">
-  <span>76–100 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-3.svg" width="32" alt="Battery charging between 51% and 75%">
-  <span>51–75 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-2.svg" width="32" alt="Battery charging between 26% and 50%">
-  <span>26–50 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-1.svg" width="32" alt="Battery charging between 11% and 25%">
-  <span>11–25 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/battery/battery-charging-0.svg" width="32" alt="Battery charging between 0% and 10%">
-  <span>0–10 %</span>
-</div>
+|<img src="src/icons/menu/battery/battery-charging-4.svg" width="32" alt="Battery charging between 76% and 100%">|<img src="src/icons/menu/battery/battery-charging-3.svg" width="32" alt="Battery charging between 51% and 75%">|<img src="src/icons/menu/battery/battery-charging-2.svg" width="32" alt="Battery charging between 26% and 50%">|<img src="src/icons/menu/battery/battery-charging-1.svg" width="32" alt="Battery charging between 11% and 25%">|<img src="src/icons/menu/battery/battery-charging-0.svg" width="32" alt="Battery charging between 0% and 10%">|
+|:--------:|:--------:|:--------:|:--------:|:--------:|
+|76–100 %|51–75 %|26–50 %|11–25 %|0–10 %|
 <!-- markdownlint-enable MD033 -->
 
 ## DPI Control
