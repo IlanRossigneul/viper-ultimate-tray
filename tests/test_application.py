@@ -596,8 +596,8 @@ def test_run_orchestrates_application_startup() -> None:
         on_disconnected=application._handle_disconnection,
     )
 
-    mouse_poller.return_value.poll.assert_called_once_with()
     mouse_poller.return_value.start.assert_called_once_with()
+    mouse_poller.return_value.stop.assert_called_once_with()
 
     indicator.setContextMenu.assert_called_once_with(widgets.menu)
     app.exec.assert_called_once_with()

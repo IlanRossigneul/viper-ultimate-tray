@@ -300,7 +300,6 @@ class Application(QObject):
             on_disconnected=self._handle_disconnection,
         )
 
-        self.poller.poll()
         self.poller.start()
 
         self.indicator.setContextMenu(self.menu_widgets.menu)
@@ -308,4 +307,7 @@ class Application(QObject):
         try:
             return app.exec()
         finally:
+            if self.poller is not None:
+                self.poller.stop()
+
             self._instance_lock.unlock()

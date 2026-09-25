@@ -1,3 +1,4 @@
+import threading
 from unittest.mock import MagicMock, patch
 
 from razer.mouse_poller import MousePoller
@@ -34,25 +35,24 @@ def _disconnected_state() -> MouseState:
     )
 
 
-def test_poll_calls_connected_callback_with_current_state() -> None:
+def test_poll_once_emits_connected_state() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     state = _connected_state()
-
     poller = MousePoller(on_connected, on_disconnected)
 
     with patch(
         "razer.mouse_poller.get_mouse_state",
         return_value=state,
     ):
-        poller.poll()
+        poller._poll_once()
 
     on_connected.assert_called_once_with(state)
     on_disconnected.assert_not_called()
     assert poller.connected
 
 
-def test_poll_calls_disconnected_callback_when_state_is_disconnected() -> None:
+def test_poll_once_emits_disconnected_state() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     poller = MousePoller(on_connected, on_disconnected)
@@ -61,14 +61,14 @@ def test_poll_calls_disconnected_callback_when_state_is_disconnected() -> None:
         "razer.mouse_poller.get_mouse_state",
         return_value=_disconnected_state(),
     ):
-        poller.poll()
+        poller._poll_once()
 
     on_connected.assert_not_called()
     on_disconnected.assert_called_once()
     assert not poller.connected
 
 
-def test_poll_handles_get_mouse_state_exception_as_disconnection() -> None:
+def test_poll_once_handles_get_mouse_state_exception_as_disconnection() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     poller = MousePoller(on_connected, on_disconnected)
@@ -77,84 +77,108 @@ def test_poll_handles_get_mouse_state_exception_as_disconnection() -> None:
         "razer.mouse_poller.get_mouse_state",
         side_effect=RuntimeError("D-Bus failure"),
     ):
-        poller.poll()
+        poller._poll_once()
 
     on_connected.assert_not_called()
     on_disconnected.assert_called_once()
     assert not poller.connected
 
 
-def test_poll_calls_connected_callback_on_every_connected_poll() -> None:
+def test_handle_state_calls_connected_callback_on_every_connected_state() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     state = _connected_state()
     poller = MousePoller(on_connected, on_disconnected)
 
-    with patch(
-        "razer.mouse_poller.get_mouse_state",
-        return_value=state,
-    ):
-        poller.poll()
-        poller.poll()
+    poller._handle_state(state)
+    poller._handle_state(state)
 
     assert on_connected.call_count == 2
     on_disconnected.assert_not_called()
     assert poller.connected
 
 
-def test_poll_calls_disconnected_callback_on_every_disconnected_poll() -> None:
+def test_handle_state_calls_disconnected_callback_on_every_disconnected_state() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     poller = MousePoller(on_connected, on_disconnected)
 
-    with patch(
-        "razer.mouse_poller.get_mouse_state",
-        return_value=_disconnected_state(),
-    ):
-        poller.poll()
-        poller.poll()
+    state = _disconnected_state()
+
+    poller._handle_state(state)
+    poller._handle_state(state)
 
     on_connected.assert_not_called()
     assert on_disconnected.call_count == 2
     assert not poller.connected
 
 
-def test_poll_tracks_reconnection() -> None:
+def test_handle_state_tracks_reconnection() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     connected_state = _connected_state()
     disconnected_state = _disconnected_state()
     poller = MousePoller(on_connected, on_disconnected)
 
-    with patch(
-        "razer.mouse_poller.get_mouse_state",
-        side_effect=[disconnected_state, connected_state],
-    ):
-        poller.poll()
-        poller.poll()
+    poller._handle_state(disconnected_state)
+    poller._handle_state(connected_state)
 
     on_disconnected.assert_called_once()
     on_connected.assert_called_once_with(connected_state)
     assert poller.connected
 
 
-def test_start_starts_timer_with_default_interval() -> None:
+def test_start_runs_polling_in_dedicated_thread() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     poller = MousePoller(on_connected, on_disconnected)
 
-    with patch.object(poller.timer, "start") as start:
+    poll_thread_id: int | None = None
+
+    def get_state() -> MouseState:
+        nonlocal poll_thread_id
+        poll_thread_id = threading.get_ident()
+        poller._stop_event.set()
+        return _connected_state()
+
+    with patch(
+        "razer.mouse_poller.get_mouse_state",
+        side_effect=get_state,
+    ):
+        poller.start()
+        assert poller._thread is not None
+        poller._thread.join()
+
+    poller._thread = None
+
+    assert poll_thread_id is not None
+    assert poll_thread_id != threading.get_ident()
+
+
+def test_start_does_not_start_second_thread_when_already_running() -> None:
+    on_connected = MagicMock()
+    on_disconnected = MagicMock()
+    poller = MousePoller(on_connected, on_disconnected)
+
+    poller._thread = MagicMock()
+    poller._thread.is_alive.return_value = True
+
+    with patch("razer.mouse_poller.Thread") as thread:
         poller.start()
 
-    start.assert_called_once_with(2000)
+    thread.assert_not_called()
 
 
-def test_start_starts_timer_with_custom_interval() -> None:
+def test_stop_stops_polling_thread() -> None:
     on_connected = MagicMock()
     on_disconnected = MagicMock()
     poller = MousePoller(on_connected, on_disconnected)
 
-    with patch.object(poller.timer, "start") as start:
-        poller.start(5000)
+    thread = MagicMock()
+    poller._thread = thread
 
-    start.assert_called_once_with(5000)
+    poller.stop()
+
+    assert poller._stop_event.is_set()
+    thread.join.assert_called_once()
+    assert poller._thread is None
