@@ -26,6 +26,7 @@ jobs:
             python \
             python-pip \
             pyside6 \
+            qt6-svg \
             kstatusnotifieritem \
             python-gobject \
             libnotify \
