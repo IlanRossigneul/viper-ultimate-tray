@@ -12,23 +12,33 @@ jobs:
   checks:
     runs-on: ubuntu-latest
 
+    container:
+      image: archlinux:latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.14"
-
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install .
+          pacman -Syu --noconfirm
+          pacman -S --noconfirm --needed \
+            python \
+            python-pip \
+            pyside6 \
+            kstatusnotifieritem \
+            python-gobject \
+            libnotify \
+            python-openrazer \
+            noto-fonts \
+            openrazer-daemon
 
       - name: Install development tools
         run: |
-          pip install pytest ruff vulture
+          python -m pip install --break-system-packages \
+            pytest \
+            ruff \
+            vulture
 
       - name: Run Ruff
         run: ruff check .
@@ -40,4 +50,6 @@ jobs:
         run: vulture . vulture_whitelist.txt
 
       - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: pytest
