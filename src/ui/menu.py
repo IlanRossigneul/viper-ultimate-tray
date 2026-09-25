@@ -27,8 +27,7 @@ class MenuWidgets:
     low_battery_items: list[QAction]
 
     logs_item: QAction
-    battery_logger_start_action: QAction
-    battery_logger_stop_action: QAction
+    battery_logger_action: QAction
 
     polychromatic_action: QAction
     input_remapper_action: QAction
@@ -93,14 +92,9 @@ def create_menu(
 
     logs_item.setMenu(logs_menu)
 
-    battery_logger_start_action = create_menu_item(
-        menu_log_icon_dir / "start.svg",
-        "Démarrer",
-    )
-
-    battery_logger_stop_action = create_menu_item(
-        menu_log_icon_dir / "stop.svg",
-        "Arrêter",
+    battery_logger_action = create_menu_item(
+        menu_log_icon_dir / "logs.svg",
+        "Enregistreur batterie",
     )
 
     polychromatic_action = create_menu_item(
@@ -139,8 +133,7 @@ def create_menu(
 
     add_separator(menu)
 
-    logs_menu.addAction(battery_logger_start_action)
-    logs_menu.addAction(battery_logger_stop_action)
+    logs_menu.addAction(battery_logger_action)
 
     menu.addAction(logs_item)
 
@@ -164,8 +157,7 @@ def create_menu(
         low_battery_menu=low_battery_menu,
         low_battery_items=low_battery_items,
         logs_item=logs_item,
-        battery_logger_start_action=battery_logger_start_action,
-        battery_logger_stop_action=battery_logger_stop_action,
+        battery_logger_action=battery_logger_action,
         polychromatic_action=polychromatic_action,
         input_remapper_action=input_remapper_action,
     )

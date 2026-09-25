@@ -1,18 +1,29 @@
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from threading import Thread
 
 from .analyze_charge import ChargeAnalyzer
 from .archive_battery_log import BatteryLogArchiver
-from .battery_logger import BatteryLogger
+from .battery_logger import BatteryLogEntry, BatteryLogger
 from .delete_battery_log import BatteryLogDeleter
 
 logger = logging.getLogger(__name__)
 
 
 class LogManager:
-    def __init__(self, log_dir: Path) -> None:
+    def __init__(
+        self,
+        log_dir: Path,
+        on_started: Callable[[str, int], None] | None = None,
+        on_entry: Callable[[BatteryLogEntry], None] | None = None,
+        on_finished: Callable[[], None] | None = None,
+    ) -> None:
         self.log_dir = log_dir
+
+        self.on_started = on_started
+        self.on_entry = on_entry
+        self.on_finished = on_finished
 
         self.logger: BatteryLogger | None = None
         self.logger_thread: Thread | None = None
@@ -73,7 +84,12 @@ class LogManager:
         if self.is_logger_running():
             return False
 
-        self.logger = BatteryLogger(self.log_dir)
+        self.logger = BatteryLogger(
+            self.log_dir,
+            on_started=self.on_started,
+            on_entry=self.on_entry,
+            on_finished=self.on_finished,
+        )
 
         self.logger_thread = Thread(
             target=self.logger.run, daemon=True, name="BatteryLogger"

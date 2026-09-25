@@ -3,10 +3,11 @@ import logging
 from typing import Any
 
 from KStatusNotifierItem import KStatusNotifierItem
-from PySide6.QtCore import QLockFile
+from PySide6.QtCore import QLockFile, QObject, Signal
 from PySide6.QtWidgets import QApplication
 
 from battery.models import load_charge_models
+from battery_logs.battery_logger import BatteryLogEntry
 from battery_logs.manager import LogManager
 from config.paths import (
     BATTERY_LOGS_DIR,
@@ -21,6 +22,7 @@ from notifications.mouse_notifications import MouseNotificationManager
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
 from razer.mouse_state import MouseState, get_mouse_state
+from ui.battery_logger import BatteryLoggerWindow
 from ui.dpi_menu import create_dpi_stage_menu
 from ui.idle_menu import create_idle_time_menu
 from ui.low_battery_menu import create_low_battery_menu
@@ -33,8 +35,13 @@ from .logging import setup_logger
 logger = logging.getLogger(__name__)
 
 
-class Application:
+class Application(QObject):
+    battery_logger_started = Signal(str, int)
+    battery_log_entry_received = Signal(BatteryLogEntry)
+    battery_logger_finished = Signal()
+
     def __init__(self) -> None:
+        super().__init__()
         self.indicator: KStatusNotifierItem | None = None
 
         self.mouse_controller: MouseController | None = None
@@ -42,6 +49,7 @@ class Application:
         self.poller: MousePoller | None = None
         self.log_manager: LogManager | None = None
         self.menu_widgets: MenuWidgets | None = None
+        self.battery_logger_window: BatteryLoggerWindow | None = None
         self.notification_manager: MouseNotificationManager | None = None
 
         self.icon_dir = ICON_DIR
@@ -114,14 +122,46 @@ class Application:
             stage_items=widgets.stage_items,
         )
 
-    def _update_logger_menu_state(self) -> None:
-        if self.log_manager is None or self.menu_widgets is None:
-            return
+    def _open_battery_logger(self) -> None:
+        if self.battery_logger_window is None:
+            self.battery_logger_window = BatteryLoggerWindow()
 
-        running = self.log_manager.is_logger_running()
+            self.battery_logger_window.start_requested.connect(
+                self._start_battery_logger,
+            )
 
-        self.menu_widgets.battery_logger_start_action.setEnabled(not running)
-        self.menu_widgets.battery_logger_stop_action.setEnabled(running)
+            self.battery_logger_window.stop_requested.connect(
+                self._stop_battery_logger,
+            )
+
+            self.battery_logger_started.connect(
+                self.battery_logger_window.display_start,
+            )
+
+            self.battery_log_entry_received.connect(
+                self.battery_logger_window.display_log_entry,
+            )
+
+            self.battery_logger_finished.connect(
+                self.battery_logger_window.display_stop,
+            )
+
+        self.battery_logger_window.show()
+        self.battery_logger_window.raise_()
+        self.battery_logger_window.activateWindow()
+
+    def _handle_battery_log_entry(self, entry: BatteryLogEntry) -> None:
+        self.battery_log_entry_received.emit(entry)
+
+    def _handle_battery_logger_started(
+        self,
+        mode: str,
+        interval_seconds: int,
+    ) -> None:
+        self.battery_logger_started.emit(mode, interval_seconds)
+
+    def _handle_battery_logger_finished(self) -> None:
+        self.battery_logger_finished.emit()
 
     def _start_battery_logger(self) -> None:
         if self.log_manager is None:
@@ -130,7 +170,8 @@ class Application:
         if self.log_manager.start_logger():
             logger.info("Battery logger started.")
 
-        self._update_logger_menu_state()
+            if self.battery_logger_window is not None:
+                self.battery_logger_window.set_logging_state()
 
     def _stop_battery_logger(self) -> None:
         if self.log_manager is None:
@@ -139,7 +180,8 @@ class Application:
         if self.log_manager.stop_logger():
             logger.info("Battery logger stopped.")
 
-        self._update_logger_menu_state()
+            if self.battery_logger_window is not None:
+                self.battery_logger_window.set_idle_state()
 
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
@@ -156,19 +198,18 @@ class Application:
     def _handle_disconnection(self) -> None:
         self.status_view.show_disconnected()
 
-        if self.menu_widgets is not None:
-            self.menu_widgets.battery_logger_start_action.setEnabled(False)
-
         if self.notification_manager is not None:
             self.notification_manager.reset()
 
     def _handle_connected(self, state: MouseState) -> None:
         self.status_view.show_connected(state)
 
-        self._update_logger_menu_state()
-
         if self.notification_manager is not None:
             self.notification_manager.update(state)
+
+    def _shutdown(self) -> None:
+        if self.log_manager is not None and self.log_manager.is_logger_running():
+            self.log_manager.stop_logger()
 
     def run(self, args: list[str]) -> int:
         log_level = self._parse_args(args)
@@ -184,6 +225,8 @@ class Application:
 
         app.setQuitOnLastWindowClosed(False)
 
+        app.aboutToQuit.connect(self._shutdown)
+
         charge_models = load_charge_models()
 
         state = get_mouse_state()
@@ -194,7 +237,12 @@ class Application:
 
         self.indicator = create_indicator(self.icon_dir)
 
-        self.log_manager = LogManager(self.battery_logs_dir)
+        self.log_manager = LogManager(
+            self.battery_logs_dir,
+            on_started=self._handle_battery_logger_started,
+            on_entry=self._handle_battery_log_entry,
+            on_finished=self._handle_battery_logger_finished,
+        )
 
         self.notification_manager = MouseNotificationManager()
 
@@ -205,15 +253,9 @@ class Application:
             state.device_name,
         )
 
-        self.menu_widgets.battery_logger_start_action.triggered.connect(
-            self._start_battery_logger,
+        self.menu_widgets.battery_logger_action.triggered.connect(
+            self._open_battery_logger,
         )
-
-        self.menu_widgets.battery_logger_stop_action.triggered.connect(
-            self._stop_battery_logger,
-        )
-
-        self._update_logger_menu_state()
 
         self.mouse_controller = MouseController()
 

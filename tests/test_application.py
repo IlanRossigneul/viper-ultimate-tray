@@ -6,6 +6,7 @@ import pytest
 from PySide6.QtCore import QLockFile
 
 from app.application import Application
+from battery_logs.battery_logger import BatteryLogEntry
 from razer.mouse_state import MouseState
 
 
@@ -68,7 +69,6 @@ def test_acquire_instance_lock_succeeds() -> None:
     application = Application()
 
     application._instance_lock = MagicMock()
-
     application._instance_lock.tryLock.return_value = True
 
     assert application._acquire_instance_lock()
@@ -82,7 +82,6 @@ def test_acquire_instance_lock_fails_when_another_instance_is_running(
     application = Application()
 
     application._instance_lock = MagicMock()
-
     application._instance_lock.tryLock.return_value = False
 
     with caplog.at_level(logging.WARNING):
@@ -112,130 +111,231 @@ def test_instance_lock_allows_only_one_holder(tmp_path) -> None:
     second_lock.unlock()
 
 
-def test_update_logger_menu_state_disables_start_and_enables_stop_when_running() -> (
-    None
-):
+def test_open_battery_logger_creates_and_shows_window() -> None:
+    application = Application()
+
+    with patch("app.application.BatteryLoggerWindow") as window_class:
+        application._open_battery_logger()
+
+    window = window_class.return_value
+
+    window_class.assert_called_once_with()
+    window.show.assert_called_once_with()
+    window.raise_.assert_called_once_with()
+    window.activateWindow.assert_called_once_with()
+
+    assert application.battery_logger_window is window
+
+
+def test_open_battery_logger_reuses_existing_window() -> None:
+    application = Application()
+    application.battery_logger_window = MagicMock()
+
+    with patch("app.application.BatteryLoggerWindow") as window_class:
+        application._open_battery_logger()
+
+    window_class.assert_not_called()
+
+    application.battery_logger_window.show.assert_called_once_with()
+    application.battery_logger_window.raise_.assert_called_once_with()
+    application.battery_logger_window.activateWindow.assert_called_once_with()
+
+
+def test_open_battery_logger_connects_window_signals() -> None:
+    application = Application()
+
+    with patch("app.application.BatteryLoggerWindow") as window_class:
+        application._open_battery_logger()
+
+    window = window_class.return_value
+
+    window.start_requested.connect.assert_called_once_with(
+        application._start_battery_logger,
+    )
+    window.stop_requested.connect.assert_called_once_with(
+        application._stop_battery_logger,
+    )
+
+    entry = BatteryLogEntry(
+        timestamp="2026-09-19T19:00:00+02:00",
+        battery_percent=31.8,
+        is_charging=False,
+    )
+
+    application._handle_battery_logger_started("Razer Viper Ultimate", 1)
+    application._handle_battery_log_entry(entry)
+    application._handle_battery_logger_finished()
+
+    window.display_start.assert_called_once_with(
+        "Razer Viper Ultimate",
+        1,
+    )
+    window.display_log_entry.assert_called_once_with(entry)
+    window.display_stop.assert_called_once_with()
+
+
+def test_open_battery_logger_does_not_reconnect_signals() -> None:
+    application = Application()
+    application.battery_logger_window = MagicMock()
+
+    application._open_battery_logger()
+
+    application.battery_logger_window.start_requested.connect.assert_not_called()
+    application.battery_logger_window.stop_requested.connect.assert_not_called()
+
+    application.battery_logger_window.display_start.assert_not_called()
+    application.battery_logger_window.display_log_entry.assert_not_called()
+    application.battery_logger_window.display_stop.assert_not_called()
+
+
+def test_handle_battery_log_entry_forwards_entry_to_signal() -> None:
+    application = Application()
+    entry = BatteryLogEntry(
+        timestamp="2026-09-19T19:00:00+02:00",
+        battery_percent=31.8,
+        is_charging=False,
+    )
+
+    received_entries: list[BatteryLogEntry] = []
+
+    application.battery_log_entry_received.connect(received_entries.append)
+
+    application._handle_battery_log_entry(entry)
+
+    assert received_entries == [entry]
+
+
+def test_handle_battery_logger_started_forwards_to_signal() -> None:
+    application = Application()
+
+    received_values: list[tuple[str, int]] = []
+
+    application.battery_logger_started.connect(
+        lambda mode, interval: received_values.append((mode, interval)),
+    )
+
+    application._handle_battery_logger_started(
+        "Razer Viper Ultimate",
+        1,
+    )
+
+    assert received_values == [
+        ("Razer Viper Ultimate", 1),
+    ]
+
+
+def test_handle_battery_logger_finished_forwards_to_signal() -> None:
+    application = Application()
+
+    finished_calls = 0
+
+    def on_finished() -> None:
+        nonlocal finished_calls
+        finished_calls += 1
+
+    application.battery_logger_finished.connect(on_finished)
+
+    application._handle_battery_logger_finished()
+
+    assert finished_calls == 1
+
+
+def test_start_battery_logger_does_nothing_without_log_manager() -> None:
+    application = Application()
+
+    application._start_battery_logger()
+
+
+def test_start_battery_logger_starts_logger_and_updates_window() -> None:
     application = Application()
     application.log_manager = MagicMock()
-    application.menu_widgets = MagicMock()
+    application.battery_logger_window = MagicMock()
 
-    application.log_manager.is_logger_running.return_value = True
+    application.log_manager.start_logger.return_value = True
 
-    application._update_logger_menu_state()
+    with patch("app.application.logger.info") as logger_info:
+        application._start_battery_logger()
 
-    application.menu_widgets.battery_logger_start_action.setEnabled.assert_called_once_with(
-        False,
-    )
-    application.menu_widgets.battery_logger_stop_action.setEnabled.assert_called_once_with(
-        True,
-    )
+    application.log_manager.start_logger.assert_called_once_with()
+    logger_info.assert_called_once_with("Battery logger started.")
+    application.battery_logger_window.set_logging_state.assert_called_once_with()
 
 
-def test_update_logger_menu_state_enables_start_and_disables_stop_when_stopped() -> (
-    None
-):
+def test_start_battery_logger_does_not_update_window_when_start_fails() -> None:
     application = Application()
     application.log_manager = MagicMock()
-    application.menu_widgets = MagicMock()
+    application.battery_logger_window = MagicMock()
 
-    application.log_manager.is_logger_running.return_value = False
+    application.log_manager.start_logger.return_value = False
 
-    application._update_logger_menu_state()
+    with patch("app.application.logger.info") as logger_info:
+        application._start_battery_logger()
 
-    application.menu_widgets.battery_logger_start_action.setEnabled.assert_called_once_with(
-        True,
-    )
-    application.menu_widgets.battery_logger_stop_action.setEnabled.assert_called_once_with(
-        False,
-    )
+    application.log_manager.start_logger.assert_called_once_with()
+    logger_info.assert_not_called()
+    application.battery_logger_window.set_logging_state.assert_not_called()
 
 
-def test_update_logger_menu_state_does_nothing_without_log_manager() -> None:
-    application = Application()
-    application.menu_widgets = MagicMock()
-
-    application._update_logger_menu_state()
-
-    application.menu_widgets.battery_logger_start_action.setEnabled.assert_not_called()
-    application.menu_widgets.battery_logger_stop_action.setEnabled.assert_not_called()
-
-
-def test_start_battery_logger_starts_and_updates_menu_state() -> None:
+def test_start_battery_logger_starts_logger_without_window() -> None:
     application = Application()
     application.log_manager = MagicMock()
 
     application.log_manager.start_logger.return_value = True
 
-    with (
-        patch("app.application.logger.info") as logger_info,
-        patch.object(
-            application,
-            "_update_logger_menu_state",
-        ) as update_menu,
-    ):
+    with patch("app.application.logger.info") as logger_info:
         application._start_battery_logger()
 
     application.log_manager.start_logger.assert_called_once_with()
     logger_info.assert_called_once_with("Battery logger started.")
-    update_menu.assert_called_once_with()
 
 
-def test_start_battery_logger_does_not_log_when_start_fails() -> None:
+def test_stop_battery_logger_does_nothing_without_log_manager() -> None:
+    application = Application()
+
+    application._stop_battery_logger()
+
+
+def test_stop_battery_logger_stops_logger_and_updates_window() -> None:
     application = Application()
     application.log_manager = MagicMock()
+    application.battery_logger_window = MagicMock()
 
-    application.log_manager.start_logger.return_value = False
+    application.log_manager.stop_logger.return_value = True
 
-    with (
-        patch("app.application.logger.info") as logger_info,
-        patch.object(
-            application,
-            "_update_logger_menu_state",
-        ) as update_menu,
-    ):
-        application._start_battery_logger()
+    with patch("app.application.logger.info") as logger_info:
+        application._stop_battery_logger()
 
+    application.log_manager.stop_logger.assert_called_once_with()
+    logger_info.assert_called_once_with("Battery logger stopped.")
+    application.battery_logger_window.set_idle_state.assert_called_once_with()
+
+
+def test_stop_battery_logger_does_not_update_window_when_stop_fails() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+    application.battery_logger_window = MagicMock()
+
+    application.log_manager.stop_logger.return_value = False
+
+    with patch("app.application.logger.info") as logger_info:
+        application._stop_battery_logger()
+
+    application.log_manager.stop_logger.assert_called_once_with()
     logger_info.assert_not_called()
-    update_menu.assert_called_once_with()
+    application.battery_logger_window.set_idle_state.assert_not_called()
 
 
-def test_stop_battery_logger_stops_and_updates_menu_state() -> None:
+def test_stop_battery_logger_stops_logger_without_window() -> None:
     application = Application()
     application.log_manager = MagicMock()
 
     application.log_manager.stop_logger.return_value = True
 
-    with (
-        patch("app.application.logger.info") as logger_info,
-        patch.object(
-            application,
-            "_update_logger_menu_state",
-        ) as update_menu,
-    ):
+    with patch("app.application.logger.info") as logger_info:
         application._stop_battery_logger()
 
     application.log_manager.stop_logger.assert_called_once_with()
     logger_info.assert_called_once_with("Battery logger stopped.")
-    update_menu.assert_called_once_with()
-
-
-def test_stop_battery_logger_does_not_log_when_stop_fails() -> None:
-    application = Application()
-    application.log_manager = MagicMock()
-
-    application.log_manager.stop_logger.return_value = False
-
-    with (
-        patch("app.application.logger.info") as logger_info,
-        patch.object(
-            application,
-            "_update_logger_menu_state",
-        ) as update_menu,
-    ):
-        application._stop_battery_logger()
-
-    logger_info.assert_not_called()
-    update_menu.assert_called_once_with()
 
 
 def test_set_active_stage_logs_error_when_controller_fails() -> None:
@@ -276,37 +376,46 @@ def test_set_low_battery_threshold_logs_error_when_controller_fails() -> None:
     )
 
 
-def test_handle_disconnection_disables_logger_start_and_resets_notifications() -> None:
+def test_handle_disconnection_resets_notifications() -> None:
     application = Application()
     application.status_view = MagicMock()
-    application.menu_widgets = MagicMock()
     application.notification_manager = MagicMock()
 
     application._handle_disconnection()
 
     application.status_view.show_disconnected.assert_called_once_with()
-    application.menu_widgets.battery_logger_start_action.setEnabled.assert_called_once_with(
-        False,
-    )
-    application.menu_widgets.battery_logger_stop_action.setEnabled.assert_not_called()
     application.notification_manager.reset.assert_called_once_with()
 
 
-def test_handle_connected_updates_logger_menu_state() -> None:
+def test_handle_disconnection_works_without_notification_manager() -> None:
+    application = Application()
+    application.status_view = MagicMock()
+
+    application._handle_disconnection()
+
+    application.status_view.show_disconnected.assert_called_once_with()
+
+
+def test_handle_connected_updates_status_and_notifications() -> None:
     application = Application()
     application.status_view = MagicMock()
     application.notification_manager = MagicMock()
     state = _connected_state()
 
-    with patch.object(
-        application,
-        "_update_logger_menu_state",
-    ) as update_logger_menu_state:
-        application._handle_connected(state)
+    application._handle_connected(state)
 
     application.status_view.show_connected.assert_called_once_with(state)
-    update_logger_menu_state.assert_called_once_with()
     application.notification_manager.update.assert_called_once_with(state)
+
+
+def test_handle_connected_works_without_notification_manager() -> None:
+    application = Application()
+    application.status_view = MagicMock()
+    state = _connected_state()
+
+    application._handle_connected(state)
+
+    application.status_view.show_connected.assert_called_once_with(state)
 
 
 def test_create_status_view_passes_menu_and_charge_model_dependencies() -> None:
@@ -348,9 +457,15 @@ def test_run_returns_error_when_mouse_is_not_connected() -> None:
     with (
         patch.object(application, "_parse_args", return_value=logging.INFO),
         patch("app.application.setup_logger") as setup_logger,
-        patch("app.application.QApplication.instance", return_value=MagicMock()),
+        patch(
+            "app.application.QApplication.instance",
+            return_value=MagicMock(),
+        ),
         patch("app.application.load_charge_models", return_value={}),
-        patch("app.application.get_mouse_state", return_value=disconnected_state),
+        patch(
+            "app.application.get_mouse_state",
+            return_value=disconnected_state,
+        ),
         patch("app.application.logger.error") as logger_error,
         patch("app.application.create_indicator") as create_indicator,
     ):
@@ -377,20 +492,35 @@ def test_run_orchestrates_application_startup() -> None:
 
     with (
         patch.object(application, "_parse_args", return_value=logging.DEBUG),
+        patch.object(
+            application,
+            "_acquire_instance_lock",
+            return_value=True,
+        ) as acquire_instance_lock,
         patch("app.application.setup_logger") as setup_logger,
         patch("app.application.QApplication.instance", return_value=app),
-        patch("app.application.load_charge_models", return_value=charge_models),
+        patch(
+            "app.application.load_charge_models",
+            return_value=charge_models,
+        ),
         patch("app.application.get_mouse_state", return_value=state),
         patch(
-            "app.application.create_indicator", return_value=indicator
+            "app.application.create_indicator",
+            return_value=indicator,
         ) as create_indicator,
         patch("app.application.LogManager") as log_manager,
         patch(
             "app.application.MouseNotificationManager",
         ) as notification_manager,
-        patch("app.application.create_menu", return_value=widgets) as create_menu,
+        patch(
+            "app.application.create_menu",
+            return_value=widgets,
+        ) as create_menu,
         patch("app.application.MouseController") as mouse_controller,
-        patch.object(application, "_create_status_view") as create_status_view,
+        patch.object(
+            application,
+            "_create_status_view",
+        ) as create_status_view,
         patch(
             "app.application.create_dpi_stage_menu",
             return_value=["dpi-item"],
@@ -412,11 +542,20 @@ def test_run_orchestrates_application_startup() -> None:
 
     assert result == 42
 
+    acquire_instance_lock.assert_called_once_with()
+
     setup_logger.assert_called_once_with(logging.DEBUG)
     app.setQuitOnLastWindowClosed.assert_called_once_with(False)
 
     create_indicator.assert_called_once_with(application.icon_dir)
-    log_manager.assert_called_once_with(application.battery_logs_dir)
+
+    log_manager.assert_called_once_with(
+        application.battery_logs_dir,
+        on_started=application._handle_battery_logger_started,
+        on_entry=application._handle_battery_log_entry,
+        on_finished=application._handle_battery_logger_finished,
+    )
+
     notification_manager.assert_called_once_with()
 
     create_menu.assert_called_once_with(
@@ -424,6 +563,10 @@ def test_run_orchestrates_application_startup() -> None:
         application.menu_battery_icon_dir,
         application.menu_log_icon_dir,
         state.device_name,
+    )
+
+    widgets.battery_logger_action.triggered.connect.assert_called_once_with(
+        application._open_battery_logger,
     )
 
     mouse_controller.assert_called_once_with()
@@ -462,3 +605,31 @@ def test_run_orchestrates_application_startup() -> None:
     assert widgets.stage_items == ["dpi-item"]
     assert widgets.idle_items == ["idle-item"]
     assert widgets.low_battery_items == ["battery-item"]
+
+
+def test_shutdown_stops_running_logger() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+    application.log_manager.is_logger_running.return_value = True
+
+    application._shutdown()
+
+    application.log_manager.is_logger_running.assert_called_once_with()
+    application.log_manager.stop_logger.assert_called_once_with()
+
+
+def test_shutdown_does_nothing_when_logger_is_not_running() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+    application.log_manager.is_logger_running.return_value = False
+
+    application._shutdown()
+
+    application.log_manager.is_logger_running.assert_called_once_with()
+    application.log_manager.stop_logger.assert_not_called()
+
+
+def test_shutdown_does_nothing_without_log_manager() -> None:
+    application = Application()
+
+    application._shutdown()

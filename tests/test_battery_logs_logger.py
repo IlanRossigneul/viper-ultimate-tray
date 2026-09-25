@@ -122,6 +122,7 @@ def test_run_creates_log_with_raw_battery_value(tmp_path):
     assert rows == [
         ["timestamp", "battery_percent", "is_charging"],
         ["2026-09-19T19:00:00+02:00", "31.8", "False"],
+        ["2026-09-19T19:00:00+02:00", "31.8", "False"],
     ]
 
 
@@ -162,6 +163,11 @@ def test_run_logs_charging_state(tmp_path):
 
     assert rows == [
         ["timestamp", "battery_percent", "is_charging"],
+        [
+            "2026-09-19T19:01:00+02:00",
+            "98.0392156862745",
+            "True",
+        ],
         [
             "2026-09-19T19:01:00+02:00",
             "98.0392156862745",
@@ -217,6 +223,7 @@ def test_run_logs_exception_and_continues(tmp_path):
 
     assert rows == [
         ["timestamp", "battery_percent", "is_charging"],
+        ["2026-09-19T19:02:00+02:00", "42.5", "False"],
         ["2026-09-19T19:02:00+02:00", "42.5", "False"],
     ]
 

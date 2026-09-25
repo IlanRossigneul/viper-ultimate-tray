@@ -86,12 +86,10 @@ def test_create_menu_builds_log_submenu() -> None:
     )
 
     assert widgets.logs_item.text() == "Journaux"
-    assert widgets.battery_logger_start_action.text() == "Démarrer"
-    assert widgets.battery_logger_stop_action.text() == "Arrêter"
+    assert widgets.battery_logger_action.text() == "Enregistreur batterie"
 
     assert widgets.logs_item.menu().actions() == [
-        widgets.battery_logger_start_action,
-        widgets.battery_logger_stop_action,
+        widgets.battery_logger_action,
     ]
 
 
