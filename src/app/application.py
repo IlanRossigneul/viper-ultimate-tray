@@ -1,5 +1,6 @@
 import argparse
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from KStatusNotifierItem import KStatusNotifierItem
@@ -22,7 +23,7 @@ from notifications.mouse_notifications import MouseNotificationManager
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
 from razer.mouse_state import MouseState, get_mouse_state
-from ui.battery_logger import BatteryLoggerWindow
+from ui.battery_logger_window import BatteryLoggerWindow
 from ui.charge_data_window import ChargeDataWindow
 from ui.dpi_menu import create_dpi_stage_menu
 from ui.idle_menu import create_idle_time_menu
@@ -54,6 +55,8 @@ class Application(QObject):
         self.menu_widgets: MenuWidgets | None = None
         self.battery_logger_window: BatteryLoggerWindow | None = None
         self.charge_data_window: ChargeDataWindow | None = None
+        self.battery_logger_started_at: datetime | None = None
+        self.battery_logger_last_duration: timedelta | None = None
         self.notification_manager: MouseNotificationManager | None = None
 
         self.icon_dir = ICON_DIR
@@ -150,6 +153,15 @@ class Application(QObject):
                 self.battery_logger_window.display_stop,
             )
 
+            if self.battery_logger_started_at is not None:
+                self.battery_logger_window.set_logging_state(
+                    self.battery_logger_started_at,
+                )
+            else:
+                self.battery_logger_window.set_idle_state(
+                    self.battery_logger_last_duration,
+                )
+
         self.battery_logger_window.show()
         self.battery_logger_window.raise_()
         self.battery_logger_window.activateWindow()
@@ -194,25 +206,61 @@ class Application(QObject):
     def _handle_battery_logger_finished(self) -> None:
         self.battery_logger_finished.emit()
 
+    def _update_battery_logger_menu(self) -> None:
+        if self.menu_widgets is None:
+            return
+
+        if self.battery_logger_started_at is None:
+            self.menu_widgets.logs_item.setText("Journalisation")
+            return
+
+        elapsed = datetime.now(timezone.utc) - self.battery_logger_started_at
+        total_seconds = int(elapsed.total_seconds())
+
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        self.menu_widgets.logs_item.setText(
+            f"Journalisation : {hours:02}:{minutes:02}:{seconds:02}"
+        )
+
     def _start_battery_logger(self) -> None:
         if self.log_manager is None:
             return
 
+        start_time = datetime.now(timezone.utc)
+
         if self.log_manager.start_logger():
+            self.battery_logger_started_at = start_time
+            self.battery_logger_last_duration = None
             logger.info("Battery logger started.")
 
+            self._update_battery_logger_menu()
+
             if self.battery_logger_window is not None:
-                self.battery_logger_window.set_logging_state()
+                self.battery_logger_window.set_logging_state(start_time)
 
     def _stop_battery_logger(self) -> None:
         if self.log_manager is None:
             return
 
+        stop_time = datetime.now(timezone.utc)
+
         if self.log_manager.stop_logger():
+            if self.battery_logger_started_at is not None:
+                self.battery_logger_last_duration = (
+                    stop_time - self.battery_logger_started_at
+                )
+
+            self.battery_logger_started_at = None
             logger.info("Battery logger stopped.")
 
+            self._update_battery_logger_menu()
+
             if self.battery_logger_window is not None:
-                self.battery_logger_window.set_idle_state()
+                self.battery_logger_window.set_idle_state(
+                    self.battery_logger_last_duration,
+                )
 
     def _handle_charge_samples(self, samples: dict[str, Any]) -> None:
         self.charge_samples_received.emit(samples)
@@ -267,6 +315,8 @@ class Application(QObject):
 
         if self.notification_manager is not None:
             self.notification_manager.update(state)
+
+        self._update_battery_logger_menu()
 
     def _shutdown(self) -> None:
         if self.log_manager is not None and self.log_manager.is_logger_running():

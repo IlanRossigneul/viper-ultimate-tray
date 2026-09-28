@@ -1,12 +1,5 @@
 # TODO
 
-## Battery data
-
-### Battery logger
-
-* Improve the battery logger window presentation if needed.
-* Consider adding pause and resume support.
-
 ## DPI
 
 * Add support for configuring arbitrary DPI values outside the existing DPI Stages.

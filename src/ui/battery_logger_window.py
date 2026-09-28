@@ -1,8 +1,11 @@
-from PySide6.QtCore import Signal
+from datetime import datetime, timedelta, timezone
+
+from PySide6.QtCore import QTimer, Signal
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
+    QLabel,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
@@ -27,6 +30,8 @@ class BatteryLoggerWindow(QDialog):
         self.start_button = QPushButton("Démarrer")
         self.stop_button = QPushButton("Arrêter")
 
+        self.logging_status = QLabel()
+
         self.log_view = QPlainTextEdit()
         self.log_view.setReadOnly(True)
         self.log_view.setMinimumSize(
@@ -40,7 +45,14 @@ class BatteryLoggerWindow(QDialog):
         self.stop_button.clicked.connect(self._stop_logging)
         self.quit_button.clicked.connect(self.close)
 
-        self.set_idle_state()
+        self._logging_started_at: datetime | None = None
+        self._last_logging_duration: timedelta | None = None
+
+        self._duration_timer = QTimer(self)
+        self._duration_timer.setInterval(1000)
+        self._duration_timer.timeout.connect(self._update_logging_status)
+
+        self.set_idle_state(None)
 
         controls_layout = QHBoxLayout()
         controls_layout.addWidget(self.start_button)
@@ -48,20 +60,33 @@ class BatteryLoggerWindow(QDialog):
 
         layout = QVBoxLayout()
         layout.addLayout(controls_layout)
+        layout.addWidget(self.logging_status)
         layout.addWidget(self.log_view)
         layout.addWidget(self.quit_button)
 
         self.setLayout(layout)
 
-    def set_idle_state(self) -> None:
+    def set_idle_state(self, last_duration: timedelta | None) -> None:
         """Set the initial and stopped state."""
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
 
-    def set_logging_state(self) -> None:
+        self._logging_started_at = None
+        self._last_logging_duration = last_duration
+        self._duration_timer.stop()
+
+        self._update_logging_status()
+
+    def set_logging_state(self, started_at: datetime) -> None:
         """Set the active logging state."""
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
+
+        self._logging_started_at = started_at
+        self._last_logging_duration = None
+        self._duration_timer.start()
+
+        self._update_logging_status()
 
     def _remove_logging_status(self) -> None:
         """Remove the current logging status line."""
@@ -115,3 +140,32 @@ class BatteryLoggerWindow(QDialog):
     def _stop_logging(self) -> None:
         """Request logger stop."""
         self.stop_requested.emit()
+
+    @staticmethod
+    def _format_duration(duration: timedelta) -> str:
+        """Format a duration as HH:MM:SS."""
+        total_seconds = max(0, int(duration.total_seconds()))
+
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+
+        return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+    def _update_logging_status(self) -> None:
+        """Update the logging duration display."""
+        if self._logging_started_at is not None:
+            duration = datetime.now(timezone.utc) - self._logging_started_at
+
+            self.logging_status.setText(
+                f"En cours de journalisation depuis : {self._format_duration(duration)}"
+            )
+            return
+
+        if self._last_logging_duration is not None:
+            self.logging_status.setText(
+                "Durée de la dernière journalisation : "
+                f"{self._format_duration(self._last_logging_duration)}"
+            )
+            return
+
+        self.logging_status.clear()

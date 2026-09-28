@@ -87,7 +87,7 @@ def create_menu(
 
     low_battery_items: list[QAction] = []
 
-    logs_item = create_menu_item(menu_log_icon_dir / "logs.svg", "Journaux")
+    logs_item = create_menu_item(menu_log_icon_dir / "logs.svg", "Journalisation")
 
     logs_menu = QMenu()
 

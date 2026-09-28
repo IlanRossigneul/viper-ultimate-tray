@@ -85,7 +85,7 @@ def test_create_menu_builds_log_submenu() -> None:
         "Razer Viper Ultimate",
     )
 
-    assert widgets.logs_item.text() == "Journaux"
+    assert widgets.logs_item.text() == "Journalisation"
     assert widgets.battery_logger_action.text() == "Enregistreur batterie"
 
     assert widgets.logs_item.menu().actions() == [

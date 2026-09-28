@@ -1,7 +1,10 @@
+from datetime import datetime, timedelta, timezone
+from unittest.mock import patch
+
 from PySide6.QtWidgets import QApplication
 
 from battery_logs.battery_logger import BatteryLogEntry
-from ui.battery_logger import BatteryLoggerWindow
+from ui.battery_logger_window import BatteryLoggerWindow
 
 
 def _get_app() -> QApplication:
@@ -29,10 +32,26 @@ def test_set_logging_state() -> None:
 
     window = BatteryLoggerWindow()
 
-    window.set_logging_state()
+    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+
+    with patch("ui.battery_logger_window.datetime") as datetime_mock:
+        datetime_mock.now.return_value = datetime(
+            2026,
+            9,
+            28,
+            12,
+            17,
+            32,
+            tzinfo=timezone.utc,
+        )
+
+        window.set_logging_state(started_at)
 
     assert not window.start_button.isEnabled()
     assert window.stop_button.isEnabled()
+    assert (
+        window.logging_status.text() == "En cours de journalisation depuis : 00:17:32"
+    )
 
 
 def test_set_idle_state() -> None:
@@ -40,11 +59,17 @@ def test_set_idle_state() -> None:
 
     window = BatteryLoggerWindow()
 
-    window.set_logging_state()
-    window.set_idle_state()
+    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+    last_duration = timedelta(minutes=17, seconds=32)
+
+    window.set_logging_state(started_at)
+    window.set_idle_state(last_duration)
 
     assert window.start_button.isEnabled()
     assert not window.stop_button.isEnabled()
+    assert (
+        window.logging_status.text() == "Durée de la dernière journalisation : 00:17:32"
+    )
 
 
 def test_start_logging_emits_signal() -> None:
@@ -198,3 +223,46 @@ def test_display_stop() -> None:
     assert window.log_view.toPlainText().endswith(
         "[15:28:54] Batterie : 81 % | État : non chargé\nFin de la journalisation"
     )
+
+
+def test_idle_state_without_previous_logging_clears_status() -> None:
+    _get_app()
+
+    window = BatteryLoggerWindow()
+
+    window.set_idle_state(None)
+
+    assert window.logging_status.text() == ""
+
+
+def test_format_duration() -> None:
+    assert BatteryLoggerWindow._format_duration(timedelta()) == "00:00:00"
+    assert (
+        BatteryLoggerWindow._format_duration(
+            timedelta(hours=1, minutes=2, seconds=3),
+        )
+        == "01:02:03"
+    )
+    assert (
+        BatteryLoggerWindow._format_duration(
+            timedelta(hours=27, minutes=45, seconds=12),
+        )
+        == "27:45:12"
+    )
+
+
+def test_logging_duration_timer_follows_logging_state() -> None:
+    _get_app()
+
+    window = BatteryLoggerWindow()
+    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+
+    assert not window._duration_timer.isActive()
+
+    window.set_logging_state(started_at)
+
+    assert window._duration_timer.isActive()
+
+    window.set_idle_state(timedelta(minutes=1))
+
+    assert not window._duration_timer.isActive()

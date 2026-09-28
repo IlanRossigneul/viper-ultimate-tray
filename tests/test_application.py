@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -250,6 +251,7 @@ def test_start_battery_logger_starts_logger_and_updates_window() -> None:
     application = Application()
     application.log_manager = MagicMock()
     application.battery_logger_window = MagicMock()
+    application.menu_widgets = MagicMock()
 
     application.log_manager.start_logger.return_value = True
 
@@ -258,7 +260,10 @@ def test_start_battery_logger_starts_logger_and_updates_window() -> None:
 
     application.log_manager.start_logger.assert_called_once_with()
     logger_info.assert_called_once_with("Battery logger started.")
-    application.battery_logger_window.set_logging_state.assert_called_once_with()
+    application.battery_logger_window.set_logging_state.assert_called_once_with(
+        application.battery_logger_started_at,
+    )
+    application.menu_widgets.logs_item.setText.assert_called_once()
 
 
 def test_start_battery_logger_does_not_update_window_when_start_fails() -> None:
@@ -299,6 +304,7 @@ def test_stop_battery_logger_stops_logger_and_updates_window() -> None:
     application = Application()
     application.log_manager = MagicMock()
     application.battery_logger_window = MagicMock()
+    application.menu_widgets = MagicMock()
 
     application.log_manager.stop_logger.return_value = True
 
@@ -307,7 +313,12 @@ def test_stop_battery_logger_stops_logger_and_updates_window() -> None:
 
     application.log_manager.stop_logger.assert_called_once_with()
     logger_info.assert_called_once_with("Battery logger stopped.")
-    application.battery_logger_window.set_idle_state.assert_called_once_with()
+    application.battery_logger_window.set_idle_state.assert_called_once_with(
+        None,
+    )
+    application.menu_widgets.logs_item.setText.assert_called_once_with(
+        "Journalisation",
+    )
 
 
 def test_stop_battery_logger_does_not_update_window_when_stop_fails() -> None:
@@ -775,3 +786,152 @@ def test_open_charge_data_reuses_existing_window_and_refreshes_data() -> None:
     application.charge_data_window.show.assert_called_once_with()
     application.charge_data_window.raise_.assert_called_once_with()
     application.charge_data_window.activateWindow.assert_called_once_with()
+
+
+def test_start_battery_logger_records_start_time() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+    application.log_manager.start_logger.return_value = True
+
+    start_time = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+
+    with patch("app.application.datetime") as datetime_mock:
+        datetime_mock.now.return_value = start_time
+
+        application._start_battery_logger()
+
+    assert application.battery_logger_started_at == start_time
+    assert application.battery_logger_last_duration is None
+
+
+def test_start_battery_logger_does_not_update_timer_when_start_fails() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+    application.log_manager.start_logger.return_value = False
+
+    previous_start = datetime(
+        2026,
+        9,
+        28,
+        11,
+        0,
+        tzinfo=timezone.utc,
+    )
+    previous_duration = timedelta(minutes=12)
+
+    application.battery_logger_started_at = previous_start
+    application.battery_logger_last_duration = previous_duration
+
+    application._start_battery_logger()
+
+    assert application.battery_logger_started_at == previous_start
+    assert application.battery_logger_last_duration == previous_duration
+
+
+def test_stop_battery_logger_records_last_duration() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+    application.log_manager.stop_logger.return_value = True
+
+    start_time = datetime(
+        2026,
+        9,
+        28,
+        12,
+        0,
+        tzinfo=timezone.utc,
+    )
+    stop_time = datetime(
+        2026,
+        9,
+        28,
+        12,
+        17,
+        32,
+        tzinfo=timezone.utc,
+    )
+
+    application.battery_logger_started_at = start_time
+
+    with patch("app.application.datetime") as datetime_mock:
+        datetime_mock.now.return_value = stop_time
+
+        application._stop_battery_logger()
+
+    assert application.battery_logger_started_at is None
+    assert application.battery_logger_last_duration == timedelta(
+        minutes=17,
+        seconds=32,
+    )
+
+
+def test_stop_battery_logger_clears_start_time_without_previous_timestamp() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+    application.log_manager.stop_logger.return_value = True
+
+    application._stop_battery_logger()
+
+    assert application.battery_logger_started_at is None
+    assert application.battery_logger_last_duration is None
+
+
+def test_update_battery_logger_menu_shows_idle_label() -> None:
+    application = Application()
+    application.menu_widgets = MagicMock()
+
+    application._update_battery_logger_menu()
+
+    application.menu_widgets.logs_item.setText.assert_called_once_with(
+        "Journalisation",
+    )
+
+
+def test_update_battery_logger_menu_shows_elapsed_time() -> None:
+    application = Application()
+    application.menu_widgets = MagicMock()
+
+    start_time = datetime(
+        2026,
+        9,
+        28,
+        12,
+        0,
+        tzinfo=timezone.utc,
+    )
+    current_time = datetime(
+        2026,
+        9,
+        28,
+        12,
+        17,
+        32,
+        tzinfo=timezone.utc,
+    )
+
+    application.battery_logger_started_at = start_time
+
+    with patch("app.application.datetime") as datetime_mock:
+        datetime_mock.now.return_value = current_time
+
+        application._update_battery_logger_menu()
+
+    application.menu_widgets.logs_item.setText.assert_called_once_with(
+        "Journalisation : 00:17:32",
+    )
+
+
+def test_handle_connected_updates_battery_logger_menu() -> None:
+    application = Application()
+    application.status_view = MagicMock()
+    application.menu_widgets = MagicMock()
+
+    state = _connected_state()
+
+    with patch.object(
+        application,
+        "_update_battery_logger_menu",
+    ) as update_menu:
+        application._handle_connected(state)
+
+    update_menu.assert_called_once_with()
