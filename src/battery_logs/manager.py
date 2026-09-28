@@ -2,6 +2,7 @@ import logging
 from collections.abc import Callable
 from pathlib import Path
 from threading import Thread
+from typing import Any
 
 from .analyze_charge import ChargeAnalyzer
 from .archive_battery_log import BatteryLogArchiver
@@ -18,17 +19,25 @@ class LogManager:
         on_started: Callable[[str, int], None] | None = None,
         on_entry: Callable[[BatteryLogEntry], None] | None = None,
         on_finished: Callable[[], None] | None = None,
+        on_samples: Callable[[dict[str, Any]], None] | None = None,
+        on_model: Callable[[dict[str, Any]], None] | None = None,
     ) -> None:
         self.log_dir = log_dir
 
         self.on_started = on_started
         self.on_entry = on_entry
         self.on_finished = on_finished
+        self.on_samples = on_samples
+        self.on_model = on_model
 
         self.logger: BatteryLogger | None = None
         self.logger_thread: Thread | None = None
 
-        self.analyzer: ChargeAnalyzer = ChargeAnalyzer(self.log_dir)
+        self.analyzer: ChargeAnalyzer = ChargeAnalyzer(
+            self.log_dir,
+            on_samples=self.on_samples,
+            on_model=self.on_model,
+        )
 
         self.archiver: BatteryLogArchiver = BatteryLogArchiver(self.log_dir)
 
@@ -47,6 +56,34 @@ class LogManager:
                 error,
             )
             return False
+
+    def load_charge_samples(self) -> dict[str, Any]:
+        return self.analyzer.load_samples()
+
+    def load_charge_model(self) -> dict[str, Any]:
+        return self.analyzer.load_model()
+
+    def update_charge_sample(
+        self,
+        mode: str,
+        created_at: str,
+        transitions: dict[str, int],
+    ) -> None:
+        self.analyzer.update_sample(
+            mode,
+            created_at,
+            transitions,
+        )
+
+    def delete_charge_sample(
+        self,
+        mode: str,
+        created_at: str,
+    ) -> None:
+        self.analyzer.delete_sample(
+            mode,
+            created_at,
+        )
 
     def archive_battery_logs(self) -> bool:
         try:

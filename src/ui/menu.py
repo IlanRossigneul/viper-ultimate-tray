@@ -28,6 +28,7 @@ class MenuWidgets:
 
     logs_item: QAction
     battery_logger_action: QAction
+    charge_data_action: QAction
 
     polychromatic_action: QAction
     input_remapper_action: QAction
@@ -93,8 +94,13 @@ def create_menu(
     logs_item.setMenu(logs_menu)
 
     battery_logger_action = create_menu_item(
-        menu_log_icon_dir / "logs.svg",
+        menu_log_icon_dir / "battery-logs.svg",
         "Enregistreur batterie",
+    )
+
+    charge_data_action = create_menu_item(
+        menu_log_icon_dir / "charge-data.svg",
+        "Données de charge",
     )
 
     polychromatic_action = create_menu_item(
@@ -134,6 +140,7 @@ def create_menu(
     add_separator(menu)
 
     logs_menu.addAction(battery_logger_action)
+    logs_menu.addAction(charge_data_action)
 
     menu.addAction(logs_item)
 
@@ -158,6 +165,7 @@ def create_menu(
         low_battery_items=low_battery_items,
         logs_item=logs_item,
         battery_logger_action=battery_logger_action,
+        charge_data_action=charge_data_action,
         polychromatic_action=polychromatic_action,
         input_remapper_action=input_remapper_action,
     )

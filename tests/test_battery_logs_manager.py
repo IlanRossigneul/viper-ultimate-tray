@@ -180,3 +180,26 @@ def test_process_battery_logs_stops_after_archive_failure(
     analyze.assert_called_once()
     archive.assert_called_once()
     delete.assert_not_called()
+
+
+def test_init_passes_charge_data_callbacks_to_analyzer(
+    tmp_path: Path,
+) -> None:
+    on_samples = MagicMock()
+    on_model = MagicMock()
+
+    with patch(
+        "battery_logs.manager.ChargeAnalyzer",
+    ) as analyzer_class:
+        manager = LogManager(
+            tmp_path,
+            on_samples=on_samples,
+            on_model=on_model,
+        )
+
+    analyzer_class.assert_called_once_with(
+        tmp_path,
+        on_samples=on_samples,
+        on_model=on_model,
+    )
+    assert manager.analyzer is analyzer_class.return_value

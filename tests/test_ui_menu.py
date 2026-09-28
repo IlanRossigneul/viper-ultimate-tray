@@ -90,6 +90,7 @@ def test_create_menu_builds_log_submenu() -> None:
 
     assert widgets.logs_item.menu().actions() == [
         widgets.battery_logger_action,
+        widgets.charge_data_action,
     ]
 
 

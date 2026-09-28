@@ -554,6 +554,8 @@ def test_run_orchestrates_application_startup() -> None:
         on_started=application._handle_battery_logger_started,
         on_entry=application._handle_battery_log_entry,
         on_finished=application._handle_battery_logger_finished,
+        on_samples=application._handle_charge_samples,
+        on_model=application._handle_charge_model,
     )
 
     notification_manager.assert_called_once_with()
@@ -633,3 +635,143 @@ def test_shutdown_does_nothing_without_log_manager() -> None:
     application = Application()
 
     application._shutdown()
+
+
+def test_handle_charge_samples_forwards_samples_to_signal() -> None:
+    application = Application()
+    samples = {"wired": [], "wireless": []}
+
+    received_samples: list[dict] = []
+
+    application.charge_samples_received.connect(received_samples.append)
+
+    application._handle_charge_samples(samples)
+
+    assert received_samples == [samples]
+
+
+def test_handle_charge_model_forwards_model_to_signal() -> None:
+    application = Application()
+    model = {
+        "wired": {
+            "statistics": {"sample_count": 0, "last_updated": None},
+            "average": {},
+        },
+        "wireless": {
+            "statistics": {"sample_count": 0, "last_updated": None},
+            "average": {},
+        },
+    }
+
+    received_models: list[dict] = []
+
+    application.charge_model_received.connect(received_models.append)
+
+    application._handle_charge_model(model)
+
+    assert received_models == [model]
+
+
+def test_open_charge_data_creates_and_initializes_window() -> None:
+    application = Application()
+    application.log_manager = MagicMock()
+
+    samples = {"wired": [], "wireless": []}
+    model = {
+        "wired": {
+            "statistics": {"sample_count": 1, "last_updated": "2026-09-19"},
+            "average": {"0": 120},
+        },
+        "wireless": {
+            "statistics": {"sample_count": 2, "last_updated": "2026-09-20"},
+            "average": {"0": 125},
+        },
+    }
+
+    application.log_manager.load_charge_samples.return_value = samples
+    application.log_manager.load_charge_model.return_value = model
+
+    with patch("app.application.ChargeDataWindow") as window_class:
+        application._open_charge_data()
+
+    window = window_class.return_value
+
+    window_class.assert_called_once_with(
+        on_update_sample=application._update_charge_sample,
+        on_delete_sample=application._delete_charge_sample,
+    )
+
+    application.log_manager.load_charge_samples.assert_called_once_with()
+    application.log_manager.load_charge_model.assert_called_once_with()
+
+    window.set_samples.assert_called_once_with(samples)
+    window.set_model.assert_called_once_with(model)
+
+    window.show.assert_called_once_with()
+    window.raise_.assert_called_once_with()
+    window.activateWindow.assert_called_once_with()
+
+    assert application.charge_data_window is window
+
+
+def test_open_charge_data_connects_window_signals() -> None:
+    application = Application()
+
+    with patch("app.application.ChargeDataWindow") as window_class:
+        application._open_charge_data()
+
+    window = window_class.return_value
+
+    samples = {"wired": [], "wireless": []}
+    model = {
+        "wired": {
+            "statistics": {"sample_count": 0, "last_updated": None},
+            "average": {},
+        },
+        "wireless": {
+            "statistics": {"sample_count": 0, "last_updated": None},
+            "average": {},
+        },
+    }
+
+    application.charge_samples_received.emit(samples)
+    application.charge_model_received.emit(model)
+
+    window.set_samples.assert_called_once_with(samples)
+    window.set_model.assert_called_once_with(model)
+
+
+def test_open_charge_data_reuses_existing_window_and_refreshes_data() -> None:
+    application = Application()
+    application.charge_data_window = MagicMock()
+    application.log_manager = MagicMock()
+
+    samples = {"wired": [], "wireless": []}
+    model = {
+        "wired": {
+            "statistics": {"sample_count": 1, "last_updated": None},
+            "average": {"0": 120},
+        },
+        "wireless": {
+            "statistics": {"sample_count": 0, "last_updated": None},
+            "average": {},
+        },
+    }
+
+    application.log_manager.load_charge_samples.return_value = samples
+    application.log_manager.load_charge_model.return_value = model
+
+    with patch("app.application.ChargeDataWindow") as window_class:
+        application._open_charge_data()
+
+    window_class.assert_not_called()
+
+    application.log_manager.load_charge_samples.assert_called_once_with()
+    application.log_manager.load_charge_model.assert_called_once_with()
+
+    application.charge_data_window.set_samples.assert_called_once_with(samples)
+    application.charge_data_window.set_model.assert_called_once_with(model)
+
+    application.charge_data_window.show.assert_called_once_with()
+    application.charge_data_window.raise_.assert_called_once_with()
+    application.charge_data_window.activateWindow.assert_called_once_with()

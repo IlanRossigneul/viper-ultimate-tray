@@ -494,3 +494,116 @@ def test_analyze_creates_empty_files_when_no_log_exists(tmp_path):
 
     assert model["wired"]["statistics"]["sample_count"] == 0
     assert model["wireless"]["statistics"]["sample_count"] == 0
+
+
+def test_analyze_calls_samples_callback(tmp_path):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    received_samples = []
+
+    analyzer.on_samples = received_samples.append
+
+    analyzer.analyze()
+
+    assert received_samples == [
+        {
+            "wired": [],
+            "wireless": [],
+        }
+    ]
+
+
+def test_analyze_calls_model_callback(tmp_path):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    received_models = []
+
+    analyzer.on_model = received_models.append
+
+    analyzer.analyze()
+
+    assert received_models == [
+        {
+            "wired": {
+                "statistics": {
+                    "sample_count": 0,
+                    "last_updated": None,
+                },
+                "average": {},
+            },
+            "wireless": {
+                "statistics": {
+                    "sample_count": 0,
+                    "last_updated": None,
+                },
+                "average": {},
+            },
+        }
+    ]
+
+
+def test_analyze_calls_callbacks_with_analyzed_data(tmp_path):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    input_file = tmp_path / "battery_wireless_charge_log.csv"
+
+    _write_log(
+        input_file,
+        [
+            ["2026-09-19T19:00:00+02:00", "40.0", "True"],
+            ["2026-09-19T19:01:00+02:00", "41.0", "True"],
+            ["2026-09-19T19:03:00+02:00", "42.0", "True"],
+            ["2026-09-19T19:06:00+02:00", "43.0", "True"],
+        ],
+    )
+
+    received_samples = []
+    received_models = []
+
+    analyzer.on_samples = received_samples.append
+    analyzer.on_model = received_models.append
+
+    fixed_now = "2026-09-19T20:00:00+02:00"
+
+    with patch("battery_logs.analyze_charge.datetime") as datetime_mock:
+        datetime_mock.fromisoformat.side_effect = datetime.fromisoformat
+        datetime_mock.now.return_value.astimezone.return_value.isoformat.return_value = fixed_now
+
+        analyzer.analyze()
+
+    assert received_samples == [
+        {
+            "wired": [],
+            "wireless": [
+                {
+                    "created_at": fixed_now,
+                    "transitions": {
+                        "41": 120,
+                        "42": 180,
+                    },
+                }
+            ],
+        }
+    ]
+
+    assert received_models == [
+        {
+            "wired": {
+                "statistics": {
+                    "sample_count": 0,
+                    "last_updated": None,
+                },
+                "average": {},
+            },
+            "wireless": {
+                "statistics": {
+                    "sample_count": 1,
+                    "last_updated": fixed_now,
+                },
+                "average": {
+                    "41": 120,
+                    "42": 180,
+                },
+            },
+        }
+    ]

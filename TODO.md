@@ -7,13 +7,6 @@
 * Improve the battery logger window presentation if needed.
 * Consider adding pause and resume support.
 
-### Samples and charge models
-
-* Add a dedicated window for inspecting battery samples and charge models.
-* Provide tools for viewing and manipulating recorded battery data.
-* Provide tools for inspecting, rebuilding and managing wired and wireless charge models.
-* Consider introducing sample and model management progressively across different releases rather than implementing everything at once.
-
 ## DPI
 
 * Add support for configuring arbitrary DPI values outside the existing DPI Stages.

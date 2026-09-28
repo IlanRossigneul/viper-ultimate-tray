@@ -3,6 +3,7 @@ import json
 import logging
 import math
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,8 +23,16 @@ class ChargeAnalyzer:
         ("wireless", Path("battery_wireless_charge_log.csv")),
     )
 
-    def __init__(self, log_dir: Path) -> None:
+    def __init__(
+        self,
+        log_dir: Path,
+        on_samples: Callable[[dict[str, Any]], None] | None = None,
+        on_model: Callable[[dict[str, Any]], None] | None = None,
+    ) -> None:
         self.log_dir = log_dir
+
+        self.on_samples = on_samples
+        self.on_model = on_model
 
         self.model_file = log_dir / "battery_charge_model.json"
 
@@ -161,6 +170,78 @@ class ChargeAnalyzer:
         ) as file:
             return json.load(file)
 
+    def load_samples(self) -> dict[str, Any]:
+        return self._load_samples()
+
+    def load_model(self) -> dict[str, Any]:
+        return self._load_model()
+
+    def update_sample(
+        self,
+        mode: str,
+        created_at: str,
+        transitions: dict[str, int],
+    ) -> None:
+        samples = self._load_samples()
+
+        for sample in samples.get(mode, []):
+            if sample["created_at"] == created_at:
+                sample["transitions"] = transitions
+                break
+        else:
+            return
+
+        model = self._load_model()
+
+        mode_samples = samples.get(mode, [])
+        model[mode] = {
+            "statistics": {
+                "sample_count": len(mode_samples),
+                "last_updated": datetime.now()
+                .astimezone()
+                .isoformat(timespec="seconds"),
+            },
+            "average": self._calculate_average_transitions(mode_samples),
+        }
+
+        self._save_samples(samples)
+        self._save_model(model)
+
+        self._notify_data(samples, model)
+
+    def delete_sample(
+        self,
+        mode: str,
+        created_at: str,
+    ) -> None:
+        samples = self._load_samples()
+
+        mode_samples = samples.get(mode, [])
+
+        for index, sample in enumerate(mode_samples):
+            if sample["created_at"] == created_at:
+                del mode_samples[index]
+                break
+        else:
+            return
+
+        model = self._load_model()
+
+        model[mode] = {
+            "statistics": {
+                "sample_count": len(mode_samples),
+                "last_updated": datetime.now()
+                .astimezone()
+                .isoformat(timespec="seconds"),
+            },
+            "average": self._calculate_average_transitions(mode_samples),
+        }
+
+        self._save_samples(samples)
+        self._save_model(model)
+
+        self._notify_data(samples, model)
+
     def _calculate_average_transitions(
         self,
         samples: list[dict[str, Any]],
@@ -269,6 +350,17 @@ class ChargeAnalyzer:
                 self._format_duration(seconds),
             )
 
+    def _notify_data(
+        self,
+        samples: dict[str, Any],
+        model: dict[str, Any],
+    ) -> None:
+        if self.on_samples is not None:
+            self.on_samples(samples)
+
+        if self.on_model is not None:
+            self.on_model(model)
+
     def analyze(self) -> None:
         samples = self._load_samples()
         model = self._load_model()
@@ -290,16 +382,13 @@ class ChargeAnalyzer:
 
             analyzed = True
 
-        if not analyzed:
-            self._save_samples(samples)
-            self._save_model(model)
-
-            logger.info("No battery log found.")
-
-            return
-
         self._save_samples(samples)
         self._save_model(model)
+
+        if not analyzed:
+            logger.info("No battery log found.")
+
+        self._notify_data(samples, model)
 
 
 def main() -> None:

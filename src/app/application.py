@@ -23,6 +23,7 @@ from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
 from razer.mouse_state import MouseState, get_mouse_state
 from ui.battery_logger import BatteryLoggerWindow
+from ui.charge_data_window import ChargeDataWindow
 from ui.dpi_menu import create_dpi_stage_menu
 from ui.idle_menu import create_idle_time_menu
 from ui.low_battery_menu import create_low_battery_menu
@@ -39,6 +40,8 @@ class Application(QObject):
     battery_logger_started = Signal(str, int)
     battery_log_entry_received = Signal(BatteryLogEntry)
     battery_logger_finished = Signal()
+    charge_samples_received = Signal(object)
+    charge_model_received = Signal(object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -50,6 +53,7 @@ class Application(QObject):
         self.log_manager: LogManager | None = None
         self.menu_widgets: MenuWidgets | None = None
         self.battery_logger_window: BatteryLoggerWindow | None = None
+        self.charge_data_window: ChargeDataWindow | None = None
         self.notification_manager: MouseNotificationManager | None = None
 
         self.icon_dir = ICON_DIR
@@ -150,6 +154,33 @@ class Application(QObject):
         self.battery_logger_window.raise_()
         self.battery_logger_window.activateWindow()
 
+    def _open_charge_data(self) -> None:
+        if self.charge_data_window is None:
+            self.charge_data_window = ChargeDataWindow(
+                on_update_sample=self._update_charge_sample,
+                on_delete_sample=self._delete_charge_sample,
+            )
+
+            self.charge_samples_received.connect(
+                self.charge_data_window.set_samples,
+            )
+
+            self.charge_model_received.connect(
+                self.charge_data_window.set_model,
+            )
+
+        if self.log_manager is not None:
+            self.charge_data_window.set_samples(
+                self.log_manager.load_charge_samples(),
+            )
+            self.charge_data_window.set_model(
+                self.log_manager.load_charge_model(),
+            )
+
+        self.charge_data_window.show()
+        self.charge_data_window.raise_()
+        self.charge_data_window.activateWindow()
+
     def _handle_battery_log_entry(self, entry: BatteryLogEntry) -> None:
         self.battery_log_entry_received.emit(entry)
 
@@ -182,6 +213,36 @@ class Application(QObject):
 
             if self.battery_logger_window is not None:
                 self.battery_logger_window.set_idle_state()
+
+    def _handle_charge_samples(self, samples: dict[str, Any]) -> None:
+        self.charge_samples_received.emit(samples)
+
+    def _handle_charge_model(self, model: dict[str, Any]) -> None:
+        self.charge_model_received.emit(model)
+
+    def _update_charge_sample(
+        self,
+        mode: str,
+        created_at: str,
+        transitions: dict[str, int],
+    ) -> None:
+        if self.log_manager is not None:
+            self.log_manager.update_charge_sample(
+                mode,
+                created_at,
+                transitions,
+            )
+
+    def _delete_charge_sample(
+        self,
+        mode: str,
+        created_at: str,
+    ) -> None:
+        if self.log_manager is not None:
+            self.log_manager.delete_charge_sample(
+                mode,
+                created_at,
+            )
 
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
@@ -223,6 +284,7 @@ class Application(QObject):
         if app is None:
             app = QApplication([])
 
+        app.setDesktopFileName("viper-ultimate-tray")
         app.setQuitOnLastWindowClosed(False)
 
         app.aboutToQuit.connect(self._shutdown)
@@ -242,6 +304,8 @@ class Application(QObject):
             on_started=self._handle_battery_logger_started,
             on_entry=self._handle_battery_log_entry,
             on_finished=self._handle_battery_logger_finished,
+            on_samples=self._handle_charge_samples,
+            on_model=self._handle_charge_model,
         )
 
         self.notification_manager = MouseNotificationManager()
@@ -255,6 +319,10 @@ class Application(QObject):
 
         self.menu_widgets.battery_logger_action.triggered.connect(
             self._open_battery_logger,
+        )
+
+        self.menu_widgets.charge_data_action.triggered.connect(
+            self._open_charge_data,
         )
 
         self.mouse_controller = MouseController()

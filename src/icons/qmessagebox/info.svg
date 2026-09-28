@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="256"
+   height="256"
+   viewBox="-256 -256 0 0"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="info.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="1.52"
+     inkscape:cx="-0.32894737"
+     inkscape:cy="-0.32894737"
+     inkscape:window-width="1920"
+     inkscape:window-height="1014"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <title
+     id="title1">info</title>
+  <path
+     fill="currentColor"
+     d="M 128,24 A 104,104 0 1 0 232,128 104.11,104.11 0 0 0 128,24 m 0,192 a 88,88 0 1 1 88,-88 88.1,88.1 0 0 1 -88,88 m 16,-40 a 8,8 0 0 1 -8,8 16,16 0 0 1 -16,-16 v -40 a 8,8 0 0 1 0,-16 16,16 0 0 1 16,16 v 40 a 8,8 0 0 1 8,8 M 112,84 a 12,12 0 1 1 12,12 12,12 0 0 1 -12,-12"
+     id="path1"
+     style="fill:#00ff00" />
+  <metadata
+     id="metadata1">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>info</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>
