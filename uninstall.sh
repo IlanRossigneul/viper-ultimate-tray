@@ -18,6 +18,7 @@ AUTOSTART_FILE="$AUTOSTART_DIR/viper-ultimate-tray.desktop"
 DEPENDENCIES=(
     python
     pyside6
+    qt6-svg
     kstatusnotifieritem
     python-gobject
     libnotify

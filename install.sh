@@ -11,6 +11,7 @@ BIN_DIR="$HOME/.local/bin"
 DEPENDENCIES=(
     python
     pyside6
+    qt6-svg
     kstatusnotifieritem
     python-gobject
     libnotify
@@ -33,6 +34,7 @@ INPUT_REMAPPER_INSTALL_PACKAGE="input-remapper-git"
 declare -A MIN_VERSIONS=(
     [python]="3.11"
     [pyside6]="6.6"
+    [qt6-svg]="6.6"
     [kstatusnotifieritem]="6.0"
     [python-gobject]="3.44"
     [libnotify]="0.8.0"

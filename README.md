@@ -31,6 +31,10 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 - [Hibernation](#hibernation)
 - [Low-power threshold](#low-power-threshold)
 - [Battery logging](#battery-logging)
+  - [Battery Logger](#battery-logger)
+  - [Charge Data](#charge-data)
+    - [Samples](#samples)
+    - [Model](#model)
 - [Battery notifications](#battery-notifications)
   - [Low-battery notifications](#low-battery-notifications)
   - [Charge complete notification](#charge-complete-notification)
@@ -39,6 +43,8 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 - [Architecture](#architecture)
   - [Project structure](#project-structure)
 - [Development and testing](#development-and-testing)
+  - [Local checks](#local-checks)
+  - [Continuous integration](#continuous-integration)
 - [Third-party assets](#third-party-assets)
 - [License](#license)
 
@@ -49,7 +55,7 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 - **DPI control**: Select the mouse DPI directly from the default DPI stages configured on the mouse;
 - **Hibernation**: Configure the mouse hibernation timeout to control its power consumption while idle;
 - **Low-power threshold**: Configure the battery level at which the mouse enters low-power mode;
-- **Battery logging**: Record battery data and build separate charging models for wired and wireless operation from real charging sessions;
+- **Battery logging**: Record battery data during usage and charging sessions, analyze recorded charging sessions, and build separate charging models for wired and wireless operation from real-world data;
 - **Battery notifications**: Receive notifications when the battery reaches configured low-battery thresholds or when charging is complete;
 - **Hotplug support**: Automatically handle mouse disconnection and reconnection without restarting the application;
 - **External tools**: Launch compatible tools such as Polychromatic and Input Remapper directly from the tray menu.
@@ -75,6 +81,7 @@ The following packages are managed automatically:
 
 - `python` >= 3.11;
 - `pyside6` >= 6.6;
+- `qt6-svg` >= 6.6;
 - `kstatusnotifieritem` >= 6.0;
 - `python-gobject` >= 3.44;
 - `libnotify` >= 0.8.0;
@@ -196,7 +203,7 @@ The tray menu provides access to the mouse status and the application's main con
 - **DPI**: Displays the currently selected DPI and provides access to the available DPI stages;
 - **Hibernation**: Configures the mouse hibernation timeout;
 - **Low-power threshold**: Configures the battery level at which the mouse enters low-power mode;
-- **Battery log**: Starts and stops battery logging;
+- **Battery logging**: Provides access to the battery logger and charge data management;
 - **Polychromatic**: Provides a direct link to launch Polychromatic when it is installed;
 - **Input Remapper**: Provides a direct link to launch Input Remapper when it is installed.
 
@@ -270,17 +277,79 @@ When the selected threshold is reached, the mouse enters low-power mode. In this
 
 ## Battery logging
 
-Viper Ultimate Tray allows you to start and stop battery logging directly from the tray menu.
+Viper Ultimate Tray provides two complementary tools for recording and analyzing battery data: the **Battery Logger** records battery changes over time, while **Charge Data** provides access to recorded charging samples and the charging models built from them.
 
-When logging is stopped, **Start** is available and **Stop** is disabled.
+### Battery Logger
 
-![Viper Ultimate Tray with battery logging stopped](docs/screenshots/tray/battery-logs-stopped.png)
+The **Battery Logger** records battery data while the mouse is being used or charged.
 
-When logging is active, **Stop** is available and **Start** is disabled.
+The logger can be opened from **Journalisation** in the tray menu.
 
-![Viper Ultimate Tray with battery logging active](docs/screenshots/tray/battery-logs-started.png)
+![Viper Ultimate Tray Journalisation menu](docs/screenshots/tray/battery-logs.png)
 
-Battery logs are used to build the charge estimation models for wired and wireless charging.
+When the Battery Logger window is opened without an active logging session, the window displays the available controls and an empty log.
+
+![Viper Ultimate Tray Battery Logger before logging starts](docs/screenshots/battery-logging/battery-logger-unstarted.png)
+
+Clicking **Démarrer** starts the battery logger. The window displays the detected initial mode, the logging interval, and the duration of the current logging session. The duration is updated while logging is active.
+
+![Viper Ultimate Tray Battery Logger while logging](docs/screenshots/battery-logging/battery-logger-started.png)
+
+The logger records a new entry when the battery percentage or charging state changes.
+
+While logging is active, the **Journalisation** menu displays the elapsed time of the current logging session.
+
+![Viper Ultimate Tray Journalisation menu with battery logging in progress](docs/screenshots/tray/battery-logging-started.png)
+
+Clicking **Arrêter** stops the logging session. The final duration remains displayed in the window after the logger has stopped.
+
+![Viper Ultimate Tray Battery Logger after logging has stopped](docs/screenshots/battery-logging/battery-logger-finished.png)
+
+### Charge Data
+
+The **Charge Data** window provides access to the charging samples recorded by the Battery Logger and to the charging models calculated from those samples.
+
+#### Samples
+
+The **Samples** tab lists the recorded charging samples separately for wired and wireless charging.
+
+When no sample is selected, the detail area remains empty.
+
+![Viper Ultimate Tray Charge Data samples without a selected sample](docs/screenshots/battery-logging/charge-data-samples-unselected.png)
+
+Selecting a sample displays its charging mode, creation date, and the recorded duration for each battery level.
+
+![Viper Ultimate Tray selected charge data sample](docs/screenshots/battery-logging/charge-data-samples-selected.png)
+
+A selected sample can be modified with **Modifier**. During editing, the recorded durations can be changed or removed according to the validation rules displayed below the table.
+
+![Viper Ultimate Tray editing a charge data sample](docs/screenshots/battery-logging/charge-data-samples-editing.png)
+
+If the entered values are invalid, the changes are rejected and a warning is displayed.
+
+![Viper Ultimate Tray invalid charge data sample modification](docs/screenshots/battery-logging/charge-data-samples-editing-cancel.png)
+
+When the values are valid, clicking **Enregistrer** saves the modifications and displays a confirmation message.
+
+![Viper Ultimate Tray successful charge data sample modification](docs/screenshots/battery-logging/charge-data-samples-editing-success.png)
+
+Samples can also be deleted with **Supprimer**. The application asks for confirmation before permanently deleting the selected sample.
+
+![Viper Ultimate Tray charge data sample deletion confirmation](docs/screenshots/battery-logging/charge-data-samples-delete-confirmation.png)
+
+After the deletion has been completed, a confirmation message is displayed.
+
+![Viper Ultimate Tray charge data sample deletion confirmation message](docs/screenshots/battery-logging/charge-data-samples-delete-confirmed.png)
+
+#### Model
+
+The **Model** tab displays the charging models calculated from the recorded samples.
+
+Separate models are maintained for wired and wireless charging. For each battery level, the table displays the average duration for that level and the cumulative duration required to reach 100%, together with the differences between wired and wireless charging.
+
+The model is displayed in read-only mode.
+
+![Viper Ultimate Tray charge data model](docs/screenshots/battery-logging/charge-data-model.png)
 
 ## Battery notifications
 
@@ -314,7 +383,7 @@ When the mouse is disconnected, the tray icon changes to the disconnected state 
 
 ![Viper Ultimate Tray with the mouse disconnected](docs/screenshots/tray/disconnected.png)
 
-Battery logging remains active if it was already running, allowing it to be stopped while the mouse is disconnected. If logging is not running, the **Start** action is disabled until the mouse is reconnected.
+Battery logging remains active if it was already running, allowing it to be stopped while the mouse is disconnected. If logging is not running, the **Démarrer** action is disabled until the mouse is reconnected.
 
 When the mouse becomes available again, Viper Ultimate Tray automatically detects the reconnection and resumes monitoring the mouse. The battery logging controls are restored according to the current logging state.
 
@@ -322,9 +391,9 @@ No application restart is required.
 
 ## Mouse Poller
 
-The **Mouse Poller** is responsible for periodically checking the mouse connection state and notifying the application when that state changes.
+The **Mouse Poller** is responsible for periodically checking the mouse state and notifying the application of the latest state.
 
-It uses a Qt timer to poll the mouse every **2 seconds** by default.
+The polling runs in a dedicated background thread, independently from the Qt application thread, with an interval of **2 seconds** by default.
 
 For each poll, the current mouse state is retrieved through the OpenRazer interface:
 
@@ -336,7 +405,7 @@ The poller keeps track of the previous connection state so that connection and d
 
 When a previously disconnected mouse becomes available again, the poller notifies the application with the new `MouseState`, allowing the application to restore its normal state and controls.
 
-The poller runs continuously while the application is running and does not require the application to be restarted after a mouse disconnection.
+The polling thread runs continuously while the application is running and does not block the Qt application thread. A mouse disconnection does not require the application to be restarted.
 
 ## Architecture
 
@@ -356,7 +425,9 @@ The repository is organized into the application source code and tests.
 
 ## Development and testing
 
-The repository includes tests for the project.
+The repository includes an automated test suite and continuous integration checks.
+
+### Local checks
 
 Run the test suite with:
 
@@ -369,10 +440,25 @@ Check the code with:
 ```bash
 ruff check .
 ruff format --check .
-vulture .
+vulture . vulture_whitelist.txt
 ```
 
-The reported `vulture` warnings have been reviewed and are known false positives.
+The Vulture whitelist contains the symbols that are intentionally considered used by the project but cannot be detected by Vulture's static analysis.
+
+### Continuous integration
+
+The project uses **GitHub Actions** to automatically validate changes pushed to the repository.
+
+The CI workflow runs the same code quality and test checks used during local development:
+
+- Ruff linting;
+- Ruff formatting verification;
+- Vulture analysis with the project whitelist;
+- the complete pytest test suite.
+
+The checks run in an Arch Linux environment to match the target distribution as closely as possible.
+
+A change is considered validated when all CI checks complete successfully.
 
 ## Third-party assets
 
@@ -381,7 +467,6 @@ The following menu icons are provided by [Polychromatic](https://github.com/poly
 - `src/icons/menu/dpi.svg`;
 - `src/icons/menu/fast.svg`;
 - `src/icons/menu/hibernation.svg`;
-- `src/icons/menu/mouse.svg`;
 - `src/icons/menu/openrazer.svg`;
 - `src/icons/menu/polychromatic.svg`;
 - `src/icons/menu/slow.svg`;
