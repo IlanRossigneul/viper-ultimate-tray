@@ -176,6 +176,24 @@ class ChargeAnalyzer:
     def load_model(self) -> dict[str, Any]:
         return self._load_model()
 
+    def _rebuild_mode_model(
+        self,
+        mode: str,
+        samples: dict[str, Any],
+        model: dict[str, Any],
+    ) -> None:
+        mode_samples = samples.get(mode, [])
+
+        model[mode] = {
+            "statistics": {
+                "sample_count": len(mode_samples),
+                "last_updated": datetime.now()
+                .astimezone()
+                .isoformat(timespec="seconds"),
+            },
+            "average": self._calculate_average_transitions(mode_samples),
+        }
+
     def update_sample(
         self,
         mode: str,
@@ -193,16 +211,11 @@ class ChargeAnalyzer:
 
         model = self._load_model()
 
-        mode_samples = samples.get(mode, [])
-        model[mode] = {
-            "statistics": {
-                "sample_count": len(mode_samples),
-                "last_updated": datetime.now()
-                .astimezone()
-                .isoformat(timespec="seconds"),
-            },
-            "average": self._calculate_average_transitions(mode_samples),
-        }
+        self._rebuild_mode_model(
+            mode,
+            samples,
+            model,
+        )
 
         self._save_samples(samples)
         self._save_model(model)
@@ -227,15 +240,11 @@ class ChargeAnalyzer:
 
         model = self._load_model()
 
-        model[mode] = {
-            "statistics": {
-                "sample_count": len(mode_samples),
-                "last_updated": datetime.now()
-                .astimezone()
-                .isoformat(timespec="seconds"),
-            },
-            "average": self._calculate_average_transitions(mode_samples),
-        }
+        self._rebuild_mode_model(
+            mode,
+            samples,
+            model,
+        )
 
         self._save_samples(samples)
         self._save_model(model)

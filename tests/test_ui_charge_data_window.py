@@ -332,6 +332,8 @@ def test_save_sample(
         == QTableWidget.EditTrigger.NoEditTriggers
     )
 
+    duration_item = window.sample_transitions_table.item(0, 1)
+    assert duration_item is not None
     assert duration_item.text() == "130 s"
 
     assert window.edit_sample_button.isVisible()
@@ -396,7 +398,7 @@ def test_save_sample_rejects_invalid_duration(
     window.close()
 
 
-def test_save_sample_rejects_duration_after_ignored_level(
+def test_save_sample_rejects_duration_after_started_sequence_is_ignored(
     app: QApplication,
     samples: dict[str, list[dict[str, Any]]],
     monkeypatch: pytest.MonkeyPatch,
@@ -430,8 +432,13 @@ def test_save_sample_rejects_duration_after_ignored_level(
     assert first_duration is not None
     assert second_duration is not None
 
-    first_duration.setText("0")
-    second_duration.setText("50")
+    first_duration.setText("50")
+    second_duration.setText("0")
+
+    third_duration = window.sample_transitions_table.item(2, 1)
+    assert third_duration is not None
+
+    third_duration.setText("86")
 
     monkeypatch.setattr(
         QMessageBox,
@@ -506,6 +513,89 @@ def test_save_sample_allows_zero_and_blank_tail(
     ]
 
     assert samples["wired"][0]["transitions"] == {}
+
+    window.close()
+
+
+def test_save_sample_allows_leading_and_trailing_zeros(
+    app: QApplication,
+    samples: dict[str, list[dict[str, Any]]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    updated: list[tuple[str, str, dict[str, int]]] = []
+
+    def on_update(
+        mode: str,
+        created_at: str,
+        transitions: dict[str, int],
+    ) -> None:
+        updated.append((mode, created_at, transitions))
+
+    samples["wired"][0]["transitions"].update(
+        {
+            "5": 0,
+            "6": 0,
+        }
+    )
+
+    window = ChargeDataWindow(on_update_sample=on_update)
+    window.set_samples(samples)
+
+    wired_group = window.samples_tree.topLevelItem(0)
+    assert wired_group is not None
+
+    wired_item = wired_group.child(0)
+    assert wired_item is not None
+
+    window.samples_tree.setCurrentItem(wired_item)
+    app.processEvents()
+
+    window._edit_sample()
+
+    first_duration = window.sample_transitions_table.item(0, 1)
+    second_duration = window.sample_transitions_table.item(1, 1)
+    third_duration = window.sample_transitions_table.item(2, 1)
+    fourth_duration = window.sample_transitions_table.item(3, 1)
+    fifth_duration = window.sample_transitions_table.item(4, 1)
+    sixth_duration = window.sample_transitions_table.item(5, 1)
+
+    assert first_duration is not None
+    assert second_duration is not None
+    assert third_duration is not None
+    assert fourth_duration is not None
+    assert fifth_duration is not None
+    assert sixth_duration is not None
+
+    first_duration.setText("0")
+    second_duration.setText("0")
+    third_duration.setText("80")
+    fourth_duration.setText("120")
+    fifth_duration.setText("0")
+    sixth_duration.setText("0")
+
+    monkeypatch.setattr(
+        QMessageBox,
+        "exec",
+        lambda self: QMessageBox.StandardButton.Ok,
+    )
+
+    window._save_sample()
+
+    assert updated == [
+        (
+            "wired",
+            "2026-07-29T11:44:19+02:00",
+            {
+                "2": 80,
+                "4": 120,
+            },
+        ),
+    ]
+
+    assert samples["wired"][0]["transitions"] == {
+        "2": 80,
+        "4": 120,
+    }
 
     window.close()
 
@@ -784,5 +874,59 @@ def test_set_model_missing_modes_clears_table(
     window.set_model({})
 
     assert window.model_table.rowCount() == 0
+
+    window.close()
+
+
+def test_set_model_clears_stale_cells(
+    app: QApplication,
+) -> None:
+    window = ChargeDataWindow()
+
+    window.set_model(
+        {
+            "wired": {
+                "average": {
+                    "0": 120,
+                    "1": 118,
+                    "10": 105,
+                },
+            },
+            "wireless": {
+                "average": {
+                    "0": 150,
+                    "1": 148,
+                    "10": 130,
+                },
+            },
+        }
+    )
+
+    window.set_model(
+        {
+            "wired": {
+                "average": {
+                    "0": 120,
+                    "1": 118,
+                    "10": 105,
+                },
+            },
+            "wireless": {
+                "average": {},
+            },
+        }
+    )
+
+    table = window.model_table
+
+    assert table.rowCount() == 3
+
+    for row in range(3):
+        assert table.item(row, 1) is not None
+        assert table.item(row, 2) is None
+        assert table.item(row, 3) is None
+        assert table.item(row, 4) is not None
+        assert table.item(row, 5) is None
+        assert table.item(row, 6) is None
 
     window.close()

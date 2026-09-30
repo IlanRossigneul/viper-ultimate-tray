@@ -188,7 +188,7 @@ class ChargeModelHeader(QHeaderView):
 
 
 class ChargeDataWindow(QMainWindow):
-    """Charge data window"""
+    """Display recorded charge samples and charging models."""
 
     def __init__(
         self,
@@ -256,10 +256,11 @@ class ChargeDataWindow(QMainWindow):
         detail_layout.addWidget(self.sample_transitions_table)
 
         self.sample_help_label = QLabel(
-            "Une durée peut être définie à 0 ou laissée vide pour que ce "
-            "niveau ne soit pas pris en compte. Dans ce cas, tous les "
-            "niveaux suivants doivent également avoir une durée à 0 ou "
-            "être laissés vides.",
+            "Les niveaux avant le premier niveau avec une durée positive peuvent "
+            "être définis à 0 ou laissés vides. Après le début de la séquence de "
+            "durées positives, un niveau défini à 0 ou laissé vide marque la fin "
+            "de la séquence : tous les niveaux suivants doivent également être "
+            "définis à 0 ou laissés vides.",
         )
         self.sample_help_label.setWordWrap(True)
         self.sample_help_label.setStyleSheet("font-size: 9pt;")
@@ -384,6 +385,7 @@ class ChargeDataWindow(QMainWindow):
         )
 
         self.model_table.setRowCount(len(levels))
+        self.model_table.clearContents()
 
         wired_cumulative = self._calculate_cumulative_durations(
             wired_average,
@@ -525,8 +527,23 @@ class ChargeDataWindow(QMainWindow):
             f"Créé le : {self._format_created_at(sample['created_at'])}",
         )
 
-        transitions = sample["transitions"]
+        self._display_sample_transitions(sample["transitions"])
 
+    def _clear_sample_detail(self) -> None:
+        self.sample_mode_label.clear()
+        self.sample_created_at_label.clear()
+        self.sample_transitions_table.setRowCount(0)
+
+    @staticmethod
+    def _format_created_at(created_at: str) -> str:
+        return datetime.fromisoformat(created_at).strftime(
+            "%d-%m-%Y_%H:%M:%S",
+        )
+
+    def _display_sample_transitions(
+        self,
+        transitions: dict[str, int],
+    ) -> None:
         self.sample_transitions_table.setRowCount(len(transitions))
 
         for row, (level, duration) in enumerate(transitions.items()):
@@ -542,17 +559,6 @@ class ChargeDataWindow(QMainWindow):
             )
 
         self.sample_transitions_table.resizeColumnsToContents()
-
-    def _clear_sample_detail(self) -> None:
-        self.sample_mode_label.clear()
-        self.sample_created_at_label.clear()
-        self.sample_transitions_table.setRowCount(0)
-
-    @staticmethod
-    def _format_created_at(created_at: str) -> str:
-        return datetime.fromisoformat(created_at).strftime(
-            "%d-%m-%Y_%H:%M:%S",
-        )
 
     def _edit_sample(self) -> None:
         current = self.samples_tree.currentItem()
@@ -591,6 +597,7 @@ class ChargeDataWindow(QMainWindow):
 
     def _save_sample(self) -> None:
         durations: list[int | None] = []
+        positive_sequence_started = False
         ignored_levels_started = False
 
         for row in range(self.sample_transitions_table.rowCount()):
@@ -603,7 +610,10 @@ class ChargeDataWindow(QMainWindow):
 
             if not value:
                 durations.append(None)
-                ignored_levels_started = True
+
+                if positive_sequence_started:
+                    ignored_levels_started = True
+
                 continue
 
             try:
@@ -622,8 +632,11 @@ class ChargeDataWindow(QMainWindow):
 
             durations.append(duration)
 
-            if duration == 0:
-                ignored_levels_started = True
+            if duration > 0:
+                positive_sequence_started = True
+            else:
+                if positive_sequence_started:
+                    ignored_levels_started = True
 
         current = self.samples_tree.currentItem()
 
@@ -636,7 +649,7 @@ class ChargeDataWindow(QMainWindow):
 
         for row, duration in enumerate(durations):
             if duration is None or duration == 0:
-                break
+                continue
 
             level_item = self.sample_transitions_table.item(row, 0)
 
@@ -655,22 +668,13 @@ class ChargeDataWindow(QMainWindow):
 
         sample["transitions"] = transitions
 
+        self._display_sample_transitions(transitions)
+
         self._sample_backup = None
 
         self.sample_transitions_table.setEditTriggers(
             QTableWidget.EditTrigger.NoEditTriggers,
         )
-
-        for row, duration in enumerate(durations):
-            item = self.sample_transitions_table.item(row, 1)
-
-            if item is None:
-                continue
-
-            if duration is None:
-                item.setText("")
-            else:
-                item.setText(f"{duration} s")
 
         self.edit_sample_button.show()
         self.delete_sample_button.show()
