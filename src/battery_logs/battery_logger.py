@@ -26,6 +26,7 @@ class BatteryLogger:
         log_dir: Path,
         interval_seconds: int = 1,
         on_started: Callable[[str, int], None] | None = None,
+        on_start_failed: Callable[[str], None] | None = None,
         on_entry: Callable[[BatteryLogEntry], None] | None = None,
         on_finished: Callable[[], None] | None = None,
         on_session_changed: Callable[[str, str], None] | None = None,
@@ -35,6 +36,7 @@ class BatteryLogger:
         self.interval_seconds = interval_seconds
 
         self.on_started = on_started
+        self.on_start_failed = on_start_failed
         self.on_entry = on_entry
         self.on_finished = on_finished
         self.on_session_changed = on_session_changed
@@ -125,6 +127,10 @@ class BatteryLogger:
 
         if mouse is None:
             logger.error("Mouse not detected.")
+
+            if self.on_start_failed is not None:
+                self.on_start_failed("mouse_not_detected")
+
             return
 
         current_mode = mouse.name

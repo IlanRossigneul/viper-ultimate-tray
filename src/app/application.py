@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from KStatusNotifierItem import KStatusNotifierItem
-from PySide6.QtCore import QLockFile, QObject, Signal
+from PySide6.QtCore import QLockFile, QObject, Signal, Slot
 from PySide6.QtWidgets import QApplication
 
 from battery.models import load_charge_models
@@ -39,11 +39,18 @@ logger = logging.getLogger(__name__)
 
 class Application(QObject):
     battery_logger_started = Signal(str, int)
+    battery_logger_start_failed = Signal(str)
     battery_log_entry_received = Signal(BatteryLogEntry)
     battery_logger_finished = Signal()
     battery_logger_session_changed = Signal(str, str)
     charge_samples_received = Signal(object)
     charge_model_received = Signal(object)
+
+    _battery_logger_started = Signal(str, int)
+    _battery_logger_start_failed = Signal(str)
+    _battery_log_entry = Signal(BatteryLogEntry)
+    _battery_logger_finished = Signal()
+    _battery_logger_session_changed = Signal(str, str)
 
     def __init__(self) -> None:
         super().__init__()
@@ -59,6 +66,22 @@ class Application(QObject):
         self.battery_logger_started_at: datetime | None = None
         self.battery_logger_last_duration: timedelta | None = None
         self.notification_manager: MouseNotificationManager | None = None
+
+        self._battery_logger_started.connect(
+            self._handle_battery_logger_started,
+        )
+        self._battery_logger_start_failed.connect(
+            self._handle_battery_logger_start_failed,
+        )
+        self._battery_log_entry.connect(
+            self._handle_battery_log_entry,
+        )
+        self._battery_logger_finished.connect(
+            self._handle_battery_logger_finished,
+        )
+        self._battery_logger_session_changed.connect(
+            self._handle_battery_logger_session_changed,
+        )
 
         self.icon_dir = ICON_DIR
         self.battery_logs_dir = BATTERY_LOGS_DIR
@@ -146,6 +169,10 @@ class Application(QObject):
                 self.battery_logger_window.display_start,
             )
 
+            self.battery_logger_start_failed.connect(
+                self.battery_logger_window.display_start_failed,
+            )
+
             self.battery_log_entry_received.connect(
                 self.battery_logger_window.display_log_entry,
             )
@@ -198,19 +225,72 @@ class Application(QObject):
         self.charge_data_window.raise_()
         self.charge_data_window.activateWindow()
 
+    @Slot(BatteryLogEntry)
     def _handle_battery_log_entry(self, entry: BatteryLogEntry) -> None:
         self.battery_log_entry_received.emit(entry)
 
+    @Slot(str, int)
     def _handle_battery_logger_started(
         self,
         mode: str,
         interval_seconds: int,
     ) -> None:
+        self.battery_logger_started_at = datetime.now(timezone.utc)
+        self.battery_logger_last_duration = None
+
+        logger.info("Battery logger started.")
+
+        self._update_battery_logger_menu()
+
+        if self.battery_logger_window is not None:
+            self.battery_logger_window.set_logging_state(
+                self.battery_logger_started_at,
+            )
+
         self.battery_logger_started.emit(mode, interval_seconds)
 
+    @Slot(str)
+    def _handle_battery_logger_start_failed(
+        self,
+        reason: str,
+    ) -> None:
+        logger.error(
+            "Battery logger failed to start: %s",
+            reason,
+        )
+
+        self.battery_logger_started_at = None
+
+        if self.battery_logger_window is not None:
+            self.battery_logger_window.set_idle_state(
+                self.battery_logger_last_duration,
+            )
+
+        self.battery_logger_start_failed.emit(reason)
+
+    @Slot()
     def _handle_battery_logger_finished(self) -> None:
+        stop_time = datetime.now(timezone.utc)
+
+        if self.battery_logger_started_at is not None:
+            self.battery_logger_last_duration = (
+                stop_time - self.battery_logger_started_at
+            )
+
+        self.battery_logger_started_at = None
+
+        logger.info("Battery logger stopped.")
+
+        self._update_battery_logger_menu()
+
+        if self.battery_logger_window is not None:
+            self.battery_logger_window.set_idle_state(
+                self.battery_logger_last_duration,
+            )
+
         self.battery_logger_finished.emit()
 
+    @Slot(str, str)
     def _handle_battery_logger_session_changed(
         self,
         old_mode: str,
@@ -246,39 +326,13 @@ class Application(QObject):
         if self.log_manager is None:
             return
 
-        start_time = datetime.now(timezone.utc)
-
-        if self.log_manager.start_logger():
-            self.battery_logger_started_at = start_time
-            self.battery_logger_last_duration = None
-            logger.info("Battery logger started.")
-
-            self._update_battery_logger_menu()
-
-            if self.battery_logger_window is not None:
-                self.battery_logger_window.set_logging_state(start_time)
+        self.log_manager.start_logger()
 
     def _stop_battery_logger(self) -> None:
         if self.log_manager is None:
             return
 
-        stop_time = datetime.now(timezone.utc)
-
-        if self.log_manager.stop_logger():
-            if self.battery_logger_started_at is not None:
-                self.battery_logger_last_duration = (
-                    stop_time - self.battery_logger_started_at
-                )
-
-            self.battery_logger_started_at = None
-            logger.info("Battery logger stopped.")
-
-            self._update_battery_logger_menu()
-
-            if self.battery_logger_window is not None:
-                self.battery_logger_window.set_idle_state(
-                    self.battery_logger_last_duration,
-                )
+        self.log_manager.stop_logger()
 
     def _handle_charge_samples(self, samples: dict[str, Any]) -> None:
         self.charge_samples_received.emit(samples)
@@ -369,10 +423,11 @@ class Application(QObject):
 
         self.log_manager = LogManager(
             self.battery_logs_dir,
-            on_started=self._handle_battery_logger_started,
-            on_entry=self._handle_battery_log_entry,
-            on_finished=self._handle_battery_logger_finished,
-            on_session_changed=self._handle_battery_logger_session_changed,
+            on_started=self._battery_logger_started.emit,
+            on_start_failed=self._battery_logger_start_failed.emit,
+            on_entry=self._battery_log_entry.emit,
+            on_finished=self._battery_logger_finished.emit,
+            on_session_changed=self._battery_logger_session_changed.emit,
             on_samples=self._handle_charge_samples,
             on_model=self._handle_charge_model,
         )

@@ -64,8 +64,15 @@ def test_request_stop_does_nothing_when_already_stopped(tmp_path):
     info.assert_not_called()
 
 
-def test_run_does_nothing_when_mouse_is_not_detected(tmp_path):
-    logger = BatteryLogger(tmp_path)
+def test_run_reports_start_failure_when_mouse_is_not_detected(tmp_path):
+    on_started = MagicMock()
+    on_start_failed = MagicMock()
+
+    logger = BatteryLogger(
+        tmp_path,
+        on_started=on_started,
+        on_start_failed=on_start_failed,
+    )
 
     with (
         patch(
@@ -81,7 +88,10 @@ def test_run_does_nothing_when_mouse_is_not_detected(tmp_path):
         logger.run()
 
     assert list(tmp_path.iterdir()) == []
+
     error.assert_called_once_with("Mouse not detected.")
+    on_start_failed.assert_called_once_with("mouse_not_detected")
+    on_started.assert_not_called()
 
 
 def test_run_creates_log_with_raw_battery_value(tmp_path):

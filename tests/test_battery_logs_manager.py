@@ -13,6 +13,7 @@ def test_logger_is_not_running_initially(tmp_path: Path) -> None:
 
 def test_start_logger_starts_battery_logger(tmp_path: Path) -> None:
     on_started = MagicMock()
+    on_start_failed = MagicMock()
     on_entry = MagicMock()
     on_finished = MagicMock()
     on_session_changed = MagicMock()
@@ -20,6 +21,7 @@ def test_start_logger_starts_battery_logger(tmp_path: Path) -> None:
     manager = LogManager(
         tmp_path,
         on_started=on_started,
+        on_start_failed=on_start_failed,
         on_entry=on_entry,
         on_finished=on_finished,
         on_session_changed=on_session_changed,
@@ -44,6 +46,7 @@ def test_start_logger_starts_battery_logger(tmp_path: Path) -> None:
     logger_class.assert_called_once_with(
         tmp_path,
         on_started=on_started,
+        on_start_failed=on_start_failed,
         on_entry=on_entry,
         on_finished=on_finished,
         on_session_changed=manager._handle_session_changed,

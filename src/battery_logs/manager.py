@@ -17,6 +17,7 @@ class LogManager:
         self,
         log_dir: Path,
         on_started: Callable[[str, int], None] | None = None,
+        on_start_failed: Callable[[str], None] | None = None,
         on_entry: Callable[[BatteryLogEntry], None] | None = None,
         on_finished: Callable[[], None] | None = None,
         on_samples: Callable[[dict[str, Any]], None] | None = None,
@@ -26,6 +27,7 @@ class LogManager:
         self.log_dir = log_dir
 
         self.on_started = on_started
+        self.on_start_failed = on_start_failed
         self.on_entry = on_entry
         self.on_finished = on_finished
         self.on_samples = on_samples
@@ -134,6 +136,7 @@ class LogManager:
         self.logger = BatteryLogger(
             self.log_dir,
             on_started=self.on_started,
+            on_start_failed=self.on_start_failed,
             on_entry=self.on_entry,
             on_finished=self.on_finished,
             on_session_changed=self._handle_session_changed,

@@ -115,6 +115,17 @@ class BatteryLoggerWindow(QDialog):
         )
         self.log_view.appendPlainText("Journalisation en cours...")
 
+    def display_start_failed(self, reason: str) -> None:
+        self.log_view.appendPlainText("Impossible de démarrer la journalisation.")
+
+        if reason == "mouse_not_detected":
+            self.log_view.appendPlainText(
+                "La souris Razer Viper Ultimate n'a pas été détectée."
+            )
+            self.log_view.appendPlainText("Vérifiez sa connexion puis réessayez.")
+        else:
+            self.log_view.appendPlainText("Une erreur est survenue lors du démarrage.")
+
     def display_log_entry(self, entry: BatteryLogEntry) -> None:
         self._remove_logging_status()
 

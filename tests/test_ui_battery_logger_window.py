@@ -118,6 +118,33 @@ def test_display_start() -> None:
     )
 
 
+def test_display_start_failed_when_mouse_is_not_detected() -> None:
+    _get_app()
+
+    window = BatteryLoggerWindow()
+
+    window.display_start_failed("mouse_not_detected")
+
+    assert window.log_view.toPlainText() == (
+        "Impossible de démarrer la journalisation.\n"
+        "La souris Razer Viper Ultimate n'a pas été détectée.\n"
+        "Vérifiez sa connexion puis réessayez."
+    )
+
+
+def test_display_start_failed_with_unknown_reason() -> None:
+    _get_app()
+
+    window = BatteryLoggerWindow()
+
+    window.display_start_failed("unknown")
+
+    assert window.log_view.toPlainText() == (
+        "Impossible de démarrer la journalisation.\n"
+        "Une erreur est survenue lors du démarrage."
+    )
+
+
 def test_display_log_entry() -> None:
     _get_app()
 
