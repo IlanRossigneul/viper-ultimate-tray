@@ -3,8 +3,6 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-from app.logging import setup_logger
-
 logger = logging.getLogger(__name__)
 
 
@@ -55,13 +53,3 @@ class BatteryLogArchiver:
 
         if archived_files == 0:
             logger.info("No battery log found.")
-
-
-def main() -> None:
-    setup_logger(logging.DEBUG)
-
-    BatteryLogArchiver(Path(__file__).resolve().parent).archive()
-
-
-if __name__ == "__main__":
-    main()

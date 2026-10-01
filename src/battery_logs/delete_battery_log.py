@@ -1,8 +1,6 @@
 import logging
 from pathlib import Path
 
-from app.logging import setup_logger
-
 logger = logging.getLogger(__name__)
 
 
@@ -34,13 +32,3 @@ class BatteryLogDeleter:
             logger.info("No battery log found to delete.")
         else:
             logger.info("Deleted %s battery log file(s).", deleted_files)
-
-
-def main() -> None:
-    setup_logger(logging.DEBUG)
-
-    BatteryLogDeleter(Path(__file__).resolve().parent).delete()
-
-
-if __name__ == "__main__":
-    main()

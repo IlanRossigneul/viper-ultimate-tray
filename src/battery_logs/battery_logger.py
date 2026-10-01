@@ -1,6 +1,5 @@
 import csv
 import logging
-import signal
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -9,7 +8,6 @@ from pathlib import Path
 
 from openrazer.client.devices.mice import RazerMouse
 
-from app.logging import setup_logger
 from razer.device import create_device_manager, find_viper_ultimate_device
 
 logger = logging.getLogger(__name__)
@@ -211,18 +209,3 @@ class BatteryLogger:
             self.on_finished()
 
         logger.info("Battery logger stopped.")
-
-
-def main() -> None:
-    setup_logger(logging.DEBUG)
-
-    battery_logger = BatteryLogger(Path(__file__).resolve().parent)
-
-    signal.signal(signal.SIGINT, battery_logger._request_stop)
-    signal.signal(signal.SIGTERM, battery_logger._request_stop)
-
-    battery_logger.run()
-
-
-if __name__ == "__main__":
-    main()

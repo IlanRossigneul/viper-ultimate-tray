@@ -9,8 +9,6 @@ from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
-from app.logging import setup_logger
-
 ChargeEntry = dict[str, datetime | float | bool]
 
 EMPTY_CHARGE_LEVEL = 0
@@ -409,16 +407,3 @@ class ChargeAnalyzer:
         self._notify_data(samples, model)
 
         return result
-
-
-def main() -> None:
-    setup_logger(logging.DEBUG)
-
-    try:
-        ChargeAnalyzer(Path(__file__).resolve().parent).analyze()
-    except Exception:
-        logger.exception("Failed to analyze charge logs.")
-
-
-if __name__ == "__main__":
-    main()
