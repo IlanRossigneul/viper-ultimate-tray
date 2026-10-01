@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from battery_logs.analyze_charge import ChargeAnalyzer
+from battery_logs.analyze_charge import ChargeAnalysisResult, ChargeAnalyzer
 
 
 def _write_log(
@@ -388,7 +388,9 @@ def test_analyze_adds_sample_and_updates_model(tmp_path):
         datetime_mock.fromisoformat.side_effect = datetime.fromisoformat
         datetime_mock.now.return_value.astimezone.return_value.isoformat.return_value = fixed_now
 
-        analyzer.analyze()
+        result = analyzer.analyze()
+
+    assert result is ChargeAnalysisResult.NEW_SAMPLE_ADDED
 
     with analyzer.samples_file.open(
         "r",
@@ -454,24 +456,20 @@ def test_analyze_does_not_add_duplicate_latest_sample(tmp_path):
     _write_json(analyzer.samples_file, existing_samples)
 
     with patch("battery_logs.analyze_charge.datetime") as datetime_mock:
+        datetime_mock.fromisoformat.side_effect = datetime.fromisoformat
         datetime_mock.now.return_value.astimezone.return_value.isoformat.return_value = "2026-09-19T20:00:00+02:00"
 
-        analyzer.analyze()
+        result = analyzer.analyze()
 
-    with analyzer.samples_file.open(
-        "r",
-        encoding="utf-8",
-    ) as file:
-        samples = json.load(file)
-
-    assert len(samples["wireless"]) == 2
+    assert result is ChargeAnalysisResult.NO_NEW_SAMPLE
 
 
 def test_analyze_creates_empty_files_when_no_log_exists(tmp_path):
     analyzer = ChargeAnalyzer(tmp_path)
 
-    analyzer.analyze()
+    result = analyzer.analyze()
 
+    assert result is ChargeAnalysisResult.NO_NEW_SAMPLE
     assert analyzer.samples_file.exists()
     assert analyzer.model_file.exists()
 
@@ -607,3 +605,47 @@ def test_analyze_calls_callbacks_with_analyzed_data(tmp_path):
             },
         }
     ]
+
+
+def test_analyze_returns_no_new_sample_when_log_has_no_charge_session(
+    tmp_path,
+):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    input_file = tmp_path / "battery_wireless_charge_log.csv"
+
+    _write_log(
+        input_file,
+        [
+            ["2026-09-19T19:00:00+02:00", "40.0", "False"],
+            ["2026-09-19T19:01:00+02:00", "41.0", "False"],
+        ],
+    )
+
+    result = analyzer.analyze()
+
+    assert result is ChargeAnalysisResult.NO_NEW_SAMPLE
+
+
+def test_analyze_propagates_unexpected_analysis_error(tmp_path):
+    analyzer = ChargeAnalyzer(tmp_path)
+
+    input_file = tmp_path / "battery_wireless_charge_log.csv"
+
+    _write_log(
+        input_file,
+        [
+            ["2026-09-19T19:00:00+02:00", "40.0", "True"],
+            ["2026-09-19T19:01:00+02:00", "41.0", "True"],
+        ],
+    )
+
+    with (
+        patch.object(
+            analyzer,
+            "_build_charge_transitions",
+            side_effect=RuntimeError("unexpected failure"),
+        ),
+        pytest.raises(RuntimeError, match="unexpected failure"),
+    ):
+        analyzer.analyze()

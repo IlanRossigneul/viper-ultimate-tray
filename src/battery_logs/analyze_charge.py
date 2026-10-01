@@ -5,6 +5,7 @@ import math
 from collections import defaultdict
 from collections.abc import Callable
 from datetime import datetime
+from enum import Enum, auto
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,11 @@ ChargeEntry = dict[str, datetime | float | bool]
 EMPTY_CHARGE_LEVEL = 0
 
 logger = logging.getLogger(__name__)
+
+
+class ChargeAnalysisResult(Enum):
+    NO_NEW_SAMPLE = auto()
+    NEW_SAMPLE_ADDED = auto()
 
 
 class ChargeAnalyzer:
@@ -320,7 +326,7 @@ class ChargeAnalyzer:
         input_file: Path,
         samples: dict[str, Any],
         model: dict[str, Any],
-    ) -> None:
+    ) -> ChargeAnalysisResult:
         logger.info("Analyze %s...", mode)
 
         entries = self._load_charge_log(input_file)
@@ -329,11 +335,11 @@ class ChargeAnalyzer:
             transitions = self._build_charge_transitions(entries)
         except ValueError as error:
             logger.warning("%s: %s", mode, error)
-            return
+            return ChargeAnalysisResult.NO_NEW_SAMPLE
 
         if self._sample_already_exists(samples[mode], transitions):
             logger.info("Sample already exists.")
-            return
+            return ChargeAnalysisResult.NO_NEW_SAMPLE
 
         now = datetime.now().astimezone().isoformat(timespec="seconds")
 
@@ -359,6 +365,8 @@ class ChargeAnalyzer:
                 self._format_duration(seconds),
             )
 
+        return ChargeAnalysisResult.NEW_SAMPLE_ADDED
+
     def _notify_data(
         self,
         samples: dict[str, Any],
@@ -370,11 +378,11 @@ class ChargeAnalyzer:
         if self.on_model is not None:
             self.on_model(model)
 
-    def analyze(self) -> None:
+    def analyze(self) -> ChargeAnalysisResult:
         samples = self._load_samples()
         model = self._load_model()
 
-        analyzed = False
+        result = ChargeAnalysisResult.NO_NEW_SAMPLE
 
         for mode, filename in self.LOG_FILES:
             input_file = self.log_dir / filename
@@ -382,22 +390,25 @@ class ChargeAnalyzer:
             if not input_file.exists():
                 continue
 
-            self._analyze_mode(
+            mode_result = self._analyze_mode(
                 mode,
                 input_file,
                 samples,
                 model,
             )
 
-            analyzed = True
+            if mode_result is ChargeAnalysisResult.NEW_SAMPLE_ADDED:
+                result = ChargeAnalysisResult.NEW_SAMPLE_ADDED
 
         self._save_samples(samples)
         self._save_model(model)
 
-        if not analyzed:
-            logger.info("No battery log found.")
+        if result is ChargeAnalysisResult.NO_NEW_SAMPLE:
+            logger.info("No new sample added.")
 
         self._notify_data(samples, model)
+
+        return result
 
 
 def main() -> None:

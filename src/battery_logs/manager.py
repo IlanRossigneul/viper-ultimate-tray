@@ -4,7 +4,7 @@ from pathlib import Path
 from threading import Thread
 from typing import Any
 
-from .analyze_charge import ChargeAnalyzer
+from .analyze_charge import ChargeAnalysisResult, ChargeAnalyzer
 from .archive_battery_log import BatteryLogArchiver
 from .battery_logger import BatteryLogEntry, BatteryLogger
 from .delete_battery_log import BatteryLogDeleter
@@ -48,16 +48,8 @@ class LogManager:
     def is_logger_running(self) -> bool:
         return self.logger_thread is not None and self.logger_thread.is_alive()
 
-    def analyze_charge_logs(self) -> bool:
-        try:
-            self.analyzer.analyze()
-            return True
-        except Exception as error:  # noqa: BLE001
-            logger.error(
-                "Failed to analyze battery logs: %s",
-                error,
-            )
-            return False
+    def analyze_charge_logs(self) -> ChargeAnalysisResult:
+        return self.analyzer.analyze()
 
     def load_charge_samples(self) -> dict[str, Any]:
         return self.analyzer.load_samples()
@@ -110,10 +102,16 @@ class LogManager:
             return False
 
     def _process_battery_logs(self) -> None:
-        if not self.analyze_charge_logs():
+        try:
+            result = self.analyze_charge_logs()
+        except Exception:
+            logger.exception("Failed to analyze battery logs.")
             return
 
-        if not self.archive_battery_logs():
+        if (
+            result is ChargeAnalysisResult.NEW_SAMPLE_ADDED
+            and not self.archive_battery_logs()
+        ):
             return
 
         if not self.delete_battery_logs():

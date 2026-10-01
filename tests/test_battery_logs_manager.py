@@ -1,6 +1,7 @@
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from battery_logs.analyze_charge import ChargeAnalysisResult
 from battery_logs.manager import LogManager
 
 
@@ -102,15 +103,15 @@ def test_stop_logger_processes_logs_after_thread_stops(
     assert manager.logger_thread is None
 
 
-def test_process_battery_logs_runs_steps_in_order(
+def test_process_battery_logs_archives_and_deletes_after_new_sample(
     tmp_path: Path,
 ) -> None:
     manager = LogManager(tmp_path)
     calls: list[str] = []
 
-    def analyze() -> bool:
+    def analyze() -> ChargeAnalysisResult:
         calls.append("analyze")
-        return True
+        return ChargeAnalysisResult.NEW_SAMPLE_ADDED
 
     def archive() -> bool:
         calls.append("archive")
@@ -130,7 +131,7 @@ def test_process_battery_logs_runs_steps_in_order(
     assert calls == ["analyze", "archive", "delete"]
 
 
-def test_process_battery_logs_stops_after_analyze_failure(
+def test_process_battery_logs_deletes_without_archiving_when_no_new_sample(
     tmp_path: Path,
 ) -> None:
     manager = LogManager(tmp_path)
@@ -139,7 +140,34 @@ def test_process_battery_logs_stops_after_analyze_failure(
         patch.object(
             manager,
             "analyze_charge_logs",
-            return_value=False,
+            return_value=ChargeAnalysisResult.NO_NEW_SAMPLE,
+        ) as analyze,
+        patch.object(
+            manager,
+            "archive_battery_logs",
+        ) as archive,
+        patch.object(
+            manager,
+            "delete_battery_logs",
+        ) as delete,
+    ):
+        manager._process_battery_logs()
+
+    analyze.assert_called_once()
+    archive.assert_not_called()
+    delete.assert_called_once()
+
+
+def test_process_battery_logs_keeps_logs_when_analysis_fails(
+    tmp_path: Path,
+) -> None:
+    manager = LogManager(tmp_path)
+
+    with (
+        patch.object(
+            manager,
+            "analyze_charge_logs",
+            side_effect=RuntimeError("analysis failed"),
         ) as analyze,
         patch.object(
             manager,
@@ -166,7 +194,7 @@ def test_process_battery_logs_stops_after_archive_failure(
         patch.object(
             manager,
             "analyze_charge_logs",
-            return_value=True,
+            return_value=ChargeAnalysisResult.NEW_SAMPLE_ADDED,
         ) as analyze,
         patch.object(
             manager,
