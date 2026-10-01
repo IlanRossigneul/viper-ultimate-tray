@@ -109,11 +109,6 @@ class BatteryLogger:
     def stop(self) -> None:
         self.running = False
 
-    def _request_stop(self, _signum, _frame) -> None:
-        if self.running:
-            logger.info("Stopping battery logger...")
-            self.stop()
-
     def _find_mouse(self) -> RazerMouse | None:
         try:
             device_manager = create_device_manager()

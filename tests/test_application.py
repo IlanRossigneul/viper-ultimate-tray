@@ -503,8 +503,8 @@ def test_run_orchestrates_application_startup() -> None:
         on_entry=application._battery_log_entry.emit,
         on_finished=application._battery_logger_finished.emit,
         on_session_changed=application._battery_logger_session_changed.emit,
-        on_samples=application._handle_charge_samples,
-        on_model=application._handle_charge_model,
+        on_samples=application._charge_samples.emit,
+        on_model=application._charge_model.emit,
     )
 
     notification_manager.assert_called_once_with()
@@ -1000,3 +1000,74 @@ def test_handle_battery_logger_session_changed_works_without_notification_manage
         "Razer Viper Ultimate (Wireless)",
         "Razer Viper Ultimate (Wired)",
     )
+
+
+def test_charge_samples_signal_is_handled_in_gui_thread() -> None:
+    app = QApplication.instance() or QApplication([])
+
+    application = Application()
+    called_thread: list[QThread | None] = []
+
+    application.charge_samples_received.connect(
+        lambda _samples: called_thread.append(QThread.currentThread()),
+    )
+
+    samples = {"wired": [], "wireless": []}
+
+    worker_thread = threading.Thread(
+        target=application._charge_samples.emit,
+        args=(samples,),
+    )
+
+    worker_thread.start()
+
+    while worker_thread.is_alive():
+        app.processEvents()
+
+    worker_thread.join()
+    app.processEvents()
+
+    assert called_thread == [app.thread()]
+
+
+def test_charge_model_signal_is_handled_in_gui_thread() -> None:
+    app = QApplication.instance() or QApplication([])
+
+    application = Application()
+    called_thread: list[QThread | None] = []
+
+    application.charge_model_received.connect(
+        lambda _model: called_thread.append(QThread.currentThread()),
+    )
+
+    model = {
+        "wired": {
+            "statistics": {
+                "sample_count": 0,
+                "last_updated": None,
+            },
+            "average": {},
+        },
+        "wireless": {
+            "statistics": {
+                "sample_count": 0,
+                "last_updated": None,
+            },
+            "average": {},
+        },
+    }
+
+    worker_thread = threading.Thread(
+        target=application._charge_model.emit,
+        args=(model,),
+    )
+
+    worker_thread.start()
+
+    while worker_thread.is_alive():
+        app.processEvents()
+
+    worker_thread.join()
+    app.processEvents()
+
+    assert called_thread == [app.thread()]

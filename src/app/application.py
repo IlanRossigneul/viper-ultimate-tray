@@ -51,6 +51,8 @@ class Application(QObject):
     _battery_log_entry = Signal(BatteryLogEntry)
     _battery_logger_finished = Signal()
     _battery_logger_session_changed = Signal(str, str)
+    _charge_samples = Signal(object)
+    _charge_model = Signal(object)
 
     def __init__(self) -> None:
         super().__init__()
@@ -81,6 +83,13 @@ class Application(QObject):
         )
         self._battery_logger_session_changed.connect(
             self._handle_battery_logger_session_changed,
+        )
+
+        self._charge_samples.connect(
+            self._handle_charge_samples,
+        )
+        self._charge_model.connect(
+            self._handle_charge_model,
         )
 
         self.icon_dir = ICON_DIR
@@ -428,8 +437,8 @@ class Application(QObject):
             on_entry=self._battery_log_entry.emit,
             on_finished=self._battery_logger_finished.emit,
             on_session_changed=self._battery_logger_session_changed.emit,
-            on_samples=self._handle_charge_samples,
-            on_model=self._handle_charge_model,
+            on_samples=self._charge_samples.emit,
+            on_model=self._charge_model.emit,
         )
 
         self.notification_manager = MouseNotificationManager()

@@ -1,5 +1,13 @@
 # TODO
 
+## Mouse polling performance
+
+* Rework `MousePoller` to avoid repeatedly reading unchanged OpenRazer mouse state values.
+* Cache mouse state values and refresh each value only when its underlying configuration or state may have changed.
+* Preserve the complete `MouseState` exposed to the application.
+* Keep connection, battery, charging, DPI, hibernation, and low-power state updates responsive.
+* Measure the impact of the new polling strategy before and after the rework.
+
 ## DPI
 
 * Add support for configuring arbitrary DPI values outside the existing DPI Stages.

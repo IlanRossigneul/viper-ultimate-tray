@@ -44,26 +44,6 @@ def test_stop_sets_running_to_false(tmp_path):
     assert logger.running is False
 
 
-def test_request_stop_stops_running_logger(tmp_path):
-    logger = BatteryLogger(tmp_path)
-
-    with patch("battery_logs.battery_logger.logger.info") as info:
-        logger._request_stop(2, None)
-
-    assert logger.running is False
-    info.assert_called_once_with("Stopping battery logger...")
-
-
-def test_request_stop_does_nothing_when_already_stopped(tmp_path):
-    logger = BatteryLogger(tmp_path)
-    logger.stop()
-
-    with patch("battery_logs.battery_logger.logger.info") as info:
-        logger._request_stop(2, None)
-
-    info.assert_not_called()
-
-
 def test_run_reports_start_failure_when_mouse_is_not_detected(tmp_path):
     on_started = MagicMock()
     on_start_failed = MagicMock()
