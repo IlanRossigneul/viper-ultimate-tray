@@ -41,6 +41,7 @@ class Application(QObject):
     battery_logger_started = Signal(str, int)
     battery_log_entry_received = Signal(BatteryLogEntry)
     battery_logger_finished = Signal()
+    battery_logger_session_changed = Signal(str, str)
     charge_samples_received = Signal(object)
     charge_model_received = Signal(object)
 
@@ -153,6 +154,10 @@ class Application(QObject):
                 self.battery_logger_window.display_stop,
             )
 
+            self.battery_logger_session_changed.connect(
+                self.battery_logger_window.display_session_change,
+            )
+
             if self.battery_logger_started_at is not None:
                 self.battery_logger_window.set_logging_state(
                     self.battery_logger_started_at,
@@ -205,6 +210,19 @@ class Application(QObject):
 
     def _handle_battery_logger_finished(self) -> None:
         self.battery_logger_finished.emit()
+
+    def _handle_battery_logger_session_changed(
+        self,
+        old_mode: str,
+        new_mode: str,
+    ) -> None:
+        self.battery_logger_session_changed.emit(old_mode, new_mode)
+
+        if self.notification_manager is not None:
+            self.notification_manager.notify_connection_change(
+                old_mode,
+                new_mode,
+            )
 
     def _update_battery_logger_menu(self) -> None:
         if self.menu_widgets is None:
@@ -354,6 +372,7 @@ class Application(QObject):
             on_started=self._handle_battery_logger_started,
             on_entry=self._handle_battery_log_entry,
             on_finished=self._handle_battery_logger_finished,
+            on_session_changed=self._handle_battery_logger_session_changed,
             on_samples=self._handle_charge_samples,
             on_model=self._handle_charge_model,
         )

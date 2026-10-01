@@ -133,6 +133,22 @@ class BatteryLoggerWindow(QDialog):
         self._remove_logging_status()
         self.log_view.appendPlainText("Fin de la journalisation")
 
+    def display_session_change(
+        self,
+        old_mode: str,
+        new_mode: str,
+    ) -> None:
+        self._remove_logging_status()
+
+        self.log_view.appendPlainText(
+            f"Changement de connexion détecté : {old_mode} → {new_mode}"
+        )
+        self.log_view.appendPlainText(
+            f"La session {old_mode} a été terminée et traitée."
+        )
+        self.log_view.appendPlainText(f"Nouvelle session {new_mode} démarrée.")
+        self.log_view.appendPlainText("Journalisation en cours...")
+
     def _start_logging(self) -> None:
         """Request logger start."""
         self.start_requested.emit()

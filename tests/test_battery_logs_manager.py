@@ -14,12 +14,14 @@ def test_start_logger_starts_battery_logger(tmp_path: Path) -> None:
     on_started = MagicMock()
     on_entry = MagicMock()
     on_finished = MagicMock()
+    on_session_changed = MagicMock()
 
     manager = LogManager(
         tmp_path,
         on_started=on_started,
         on_entry=on_entry,
         on_finished=on_finished,
+        on_session_changed=on_session_changed,
     )
 
     mock_logger = MagicMock()
@@ -43,6 +45,7 @@ def test_start_logger_starts_battery_logger(tmp_path: Path) -> None:
         on_started=on_started,
         on_entry=on_entry,
         on_finished=on_finished,
+        on_session_changed=manager._handle_session_changed,
     )
     thread_class.assert_called_once_with(
         target=mock_logger.run,
@@ -203,3 +206,25 @@ def test_init_passes_charge_data_callbacks_to_analyzer(
         on_model=on_model,
     )
     assert manager.analyzer is analyzer_class.return_value
+
+
+def test_session_change_processes_logs_before_notifying(tmp_path: Path) -> None:
+    on_session_changed = MagicMock()
+
+    manager = LogManager(
+        tmp_path,
+        on_session_changed=on_session_changed,
+    )
+
+    calls: list[str] = []
+
+    with patch.object(
+        manager,
+        "_process_battery_logs",
+        side_effect=lambda: calls.append("process"),
+    ):
+        manager._handle_session_changed("Wireless", "Wired")
+        calls.append("callback")
+
+    assert calls == ["process", "callback"]
+    on_session_changed.assert_called_once_with("Wireless", "Wired")

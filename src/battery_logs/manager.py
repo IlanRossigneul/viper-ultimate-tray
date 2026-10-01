@@ -21,6 +21,7 @@ class LogManager:
         on_finished: Callable[[], None] | None = None,
         on_samples: Callable[[dict[str, Any]], None] | None = None,
         on_model: Callable[[dict[str, Any]], None] | None = None,
+        on_session_changed: Callable[[str, str], None] | None = None,
     ) -> None:
         self.log_dir = log_dir
 
@@ -29,6 +30,7 @@ class LogManager:
         self.on_finished = on_finished
         self.on_samples = on_samples
         self.on_model = on_model
+        self.on_session_changed = on_session_changed
 
         self.logger: BatteryLogger | None = None
         self.logger_thread: Thread | None = None
@@ -117,6 +119,16 @@ class LogManager:
         if not self.delete_battery_logs():
             return
 
+    def _handle_session_changed(
+        self,
+        old_mode: str,
+        new_mode: str,
+    ) -> None:
+        self._process_battery_logs()
+
+        if self.on_session_changed is not None:
+            self.on_session_changed(old_mode, new_mode)
+
     def start_logger(self) -> bool:
         if self.is_logger_running():
             return False
@@ -126,6 +138,7 @@ class LogManager:
             on_started=self.on_started,
             on_entry=self.on_entry,
             on_finished=self.on_finished,
+            on_session_changed=self._handle_session_changed,
         )
 
         self.logger_thread = Thread(

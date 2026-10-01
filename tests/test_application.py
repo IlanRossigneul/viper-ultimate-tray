@@ -565,6 +565,7 @@ def test_run_orchestrates_application_startup() -> None:
         on_started=application._handle_battery_logger_started,
         on_entry=application._handle_battery_log_entry,
         on_finished=application._handle_battery_logger_finished,
+        on_session_changed=application._handle_battery_logger_session_changed,
         on_samples=application._handle_charge_samples,
         on_model=application._handle_charge_model,
     )
@@ -935,3 +936,29 @@ def test_handle_connected_updates_battery_logger_menu() -> None:
         application._handle_connected(state)
 
     update_menu.assert_called_once_with()
+
+
+def test_handle_battery_logger_session_changed_notifies_connection_change() -> None:
+    application = Application()
+    application.notification_manager = MagicMock()
+
+    application._handle_battery_logger_session_changed(
+        "Razer Viper Ultimate (Wireless)",
+        "Razer Viper Ultimate (Wired)",
+    )
+
+    application.notification_manager.notify_connection_change.assert_called_once_with(
+        "Razer Viper Ultimate (Wireless)",
+        "Razer Viper Ultimate (Wired)",
+    )
+
+
+def test_handle_battery_logger_session_changed_works_without_notification_manager() -> (
+    None
+):
+    application = Application()
+
+    application._handle_battery_logger_session_changed(
+        "Razer Viper Ultimate (Wireless)",
+        "Razer Viper Ultimate (Wired)",
+    )

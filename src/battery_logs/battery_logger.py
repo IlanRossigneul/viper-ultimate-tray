@@ -30,6 +30,7 @@ class BatteryLogger:
         on_started: Callable[[str, int], None] | None = None,
         on_entry: Callable[[BatteryLogEntry], None] | None = None,
         on_finished: Callable[[], None] | None = None,
+        on_session_changed: Callable[[str, str], None] | None = None,
     ) -> None:
         self.log_dir = log_dir
 
@@ -38,6 +39,7 @@ class BatteryLogger:
         self.on_started = on_started
         self.on_entry = on_entry
         self.on_finished = on_finished
+        self.on_session_changed = on_session_changed
 
         self.running = True
 
@@ -112,63 +114,101 @@ class BatteryLogger:
             logger.info("Stopping battery logger...")
             self.stop()
 
-    def run(self) -> None:
-        device_manager = create_device_manager()
+    def _find_mouse(self) -> RazerMouse | None:
+        try:
+            device_manager = create_device_manager()
+            return find_viper_ultimate_device(device_manager)
+        except Exception:
+            logger.exception("Failed to detect mouse.")
+            return None
 
-        mouse = find_viper_ultimate_device(device_manager)
+    def run(self) -> None:
+        mouse = self._find_mouse()
 
         if mouse is None:
             logger.error("Mouse not detected.")
             return
 
+        current_mode = mouse.name
         log_file = self._get_log_file(mouse)
 
         self._initialize_log_file(log_file)
 
-        logger.info("Detected mode: %s", mouse.name)
-
+        logger.info("Detected mode: %s", current_mode)
         logger.info("Log file: %s", log_file.name)
-
         logger.info(
             "Checking battery state every %s second(s).",
             self.interval_seconds,
         )
 
         if self.on_started is not None:
-            self.on_started(mouse.name, self.interval_seconds)
+            self.on_started(current_mode, self.interval_seconds)
 
-        with log_file.open(
-            "a",
-            newline="",
-            encoding="utf-8",
-        ) as file:
-            writer = csv.writer(file)
+        while self.running:
+            with log_file.open(
+                "a",
+                newline="",
+                encoding="utf-8",
+            ) as file:
+                writer = csv.writer(file)
 
-            while self.running:
-                try:
-                    battery = mouse._dbus_interfaces["power"].getBattery()
+                while self.running:
+                    current_mouse = self._find_mouse()
 
-                    is_charging = mouse.is_charging
+                    if current_mouse is None:
+                        time.sleep(self.interval_seconds)
+                        continue
 
-                    timestamp = (
-                        datetime.now().astimezone().isoformat(timespec="seconds")
-                    )
+                    if current_mouse.name != current_mode:
+                        mouse = current_mouse
+                        break
 
-                    entry = [timestamp, battery, is_charging]
+                    mouse = current_mouse
 
-                    self._process_entry(writer, entry)
+                    try:
+                        battery = mouse._dbus_interfaces["power"].getBattery()
+                        is_charging = mouse.is_charging
+                        timestamp = (
+                            datetime.now().astimezone().isoformat(timespec="seconds")
+                        )
+                        entry = [timestamp, battery, is_charging]
+                        self._process_entry(writer, entry)
+                        file.flush()
+                    except Exception:
+                        logger.exception("Failed to log battery data.")
 
-                    file.flush()
+                    time.sleep(self.interval_seconds)
 
-                except Exception:
-                    logger.exception("Failed to log battery data.")
+                self._flush_last_entry(writer)
 
-                time.sleep(self.interval_seconds)
+            if not self.running:
+                break
 
-            self._flush_last_entry(writer)
+            new_mode = mouse.name
 
-            if self.on_finished is not None:
-                self.on_finished()
+            logger.info(
+                "Connection mode changed: %s -> %s",
+                current_mode,
+                new_mode,
+            )
+
+            if self.on_session_changed is not None:
+                self.on_session_changed(current_mode, new_mode)
+
+            if not self.running:
+                break
+
+            current_mode = new_mode
+            log_file = self._get_log_file(mouse)
+            self._initialize_log_file(log_file)
+
+            logger.info(
+                "Started new logging session: %s",
+                new_mode,
+            )
+
+        if self.on_finished is not None:
+            self.on_finished()
 
         logger.info("Battery logger stopped.")
 

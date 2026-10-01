@@ -266,3 +266,44 @@ def test_logging_duration_timer_follows_logging_state() -> None:
     window.set_idle_state(timedelta(minutes=1))
 
     assert not window._duration_timer.isActive()
+
+
+def test_display_session_change_preserves_logging_state() -> None:
+    _get_app()
+
+    window = BatteryLoggerWindow()
+
+    started_at = datetime(
+        2026,
+        9,
+        28,
+        12,
+        0,
+        tzinfo=timezone.utc,
+    )
+
+    window.set_logging_state(started_at)
+    window.display_start(
+        "Razer Viper Ultimate",
+        1,
+    )
+
+    window.display_session_change(
+        "Razer Viper Ultimate",
+        "Razer Viper Ultimate (Wired)",
+    )
+
+    assert not window.start_button.isEnabled()
+    assert window.stop_button.isEnabled()
+    assert window._duration_timer.isActive()
+
+    text = window.log_view.toPlainText()
+
+    assert (
+        "Changement de connexion détecté : "
+        "Razer Viper Ultimate → Razer Viper Ultimate (Wired)" in text
+    )
+    assert "La session Razer Viper Ultimate a été terminée et traitée." in text
+    assert "Nouvelle session Razer Viper Ultimate (Wired) démarrée." in text
+    assert text.endswith("Journalisation en cours...")
+    assert text.count("Journalisation en cours...") == 1

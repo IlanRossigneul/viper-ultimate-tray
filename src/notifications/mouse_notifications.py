@@ -179,3 +179,23 @@ class MouseNotificationManager:
         )
 
         notification.show()
+
+    def notify_connection_change(
+        self,
+        old_mode: str,
+        new_mode: str,
+    ) -> None:
+        notification = Notify.Notification.new(
+            "🖱️ Razer Viper Ultimate",
+            f"Changement de connexion : {old_mode} → {new_mode}",
+            None,
+        )
+
+        notification.set_timeout(10000)
+
+        notification.set_hint(
+            "desktop-entry",
+            GLib.Variant("s", "viper-ultimate-tray"),
+        )
+
+        notification.show()

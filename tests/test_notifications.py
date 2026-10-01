@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 from notifications import mouse_notifications
 from notifications.mouse_notifications import MouseNotificationManager
 from razer.mouse_state import ChargingSource, MouseState
@@ -248,3 +250,33 @@ def test_reset_clears_previous_state_and_notification_flags(
     manager.update(_create_state(battery=30.8))
 
     assert len(notifications) == 2
+
+
+def test_connection_change_notification_is_sent(monkeypatch) -> None:
+    manager = _create_manager(monkeypatch)
+    notification = MagicMock()
+
+    monkeypatch.setattr(
+        mouse_notifications.Notify.Notification,
+        "new",
+        MagicMock(return_value=notification),
+    )
+
+    manager.notify_connection_change(
+        "Razer Viper Ultimate (Wireless)",
+        "Razer Viper Ultimate (Wired)",
+    )
+
+    mouse_notifications.Notify.Notification.new.assert_called_once_with(
+        "🖱️ Razer Viper Ultimate",
+        (
+            "Changement de connexion : "
+            "Razer Viper Ultimate (Wireless) → "
+            "Razer Viper Ultimate (Wired)"
+        ),
+        None,
+    )
+
+    notification.set_timeout.assert_called_once_with(10000)
+    notification.show.assert_called_once_with()
+    notification.set_hint.assert_called_once()
