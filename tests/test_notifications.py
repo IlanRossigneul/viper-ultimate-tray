@@ -280,3 +280,51 @@ def test_connection_change_notification_is_sent(monkeypatch) -> None:
     notification.set_timeout.assert_called_once_with(10000)
     notification.show.assert_called_once_with()
     notification.set_hint.assert_called_once()
+
+
+def test_battery_logger_start_failed_notification_when_mouse_not_detected(
+    monkeypatch,
+) -> None:
+    manager = _create_manager(monkeypatch)
+
+    notification = MagicMock()
+    monkeypatch.setattr(
+        mouse_notifications.Notify.Notification,
+        "new",
+        MagicMock(return_value=notification),
+    )
+
+    manager.notify_battery_logger_start_failed("mouse_not_detected")
+
+    mouse_notifications.Notify.Notification.new.assert_called_once_with(
+        "🖱️ Razer Viper Ultimate",
+        "Impossible de démarrer la journalisation — souris non détectée.",
+        None,
+    )
+
+    notification.set_timeout.assert_called_once_with(10000)
+    notification.show.assert_called_once()
+
+
+def test_battery_logger_start_failed_notification_for_other_reason(
+    monkeypatch,
+) -> None:
+    manager = _create_manager(monkeypatch)
+
+    notification = MagicMock()
+    monkeypatch.setattr(
+        mouse_notifications.Notify.Notification,
+        "new",
+        MagicMock(return_value=notification),
+    )
+
+    manager.notify_battery_logger_start_failed("some_error")
+
+    mouse_notifications.Notify.Notification.new.assert_called_once_with(
+        "🖱️ Razer Viper Ultimate",
+        "Impossible de démarrer la journalisation.",
+        None,
+    )
+
+    notification.set_timeout.assert_called_once_with(10000)
+    notification.show.assert_called_once()

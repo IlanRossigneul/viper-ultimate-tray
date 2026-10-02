@@ -813,6 +813,7 @@ def test_handle_battery_logger_start_failed_resets_state() -> None:
     application = Application()
     application.menu_widgets = MagicMock()
     application.battery_logger_window = MagicMock()
+    application.notification_manager = MagicMock()
 
     application.battery_logger_started_at = datetime(
         2026,
@@ -832,6 +833,9 @@ def test_handle_battery_logger_start_failed_resets_state() -> None:
 
     assert application.battery_logger_started_at is None
     assert application.battery_logger_last_duration == timedelta(minutes=12)
+    application.notification_manager.notify_battery_logger_start_failed.assert_called_once_with(
+        "mouse_not_detected",
+    )
 
     update_menu.assert_not_called()
 

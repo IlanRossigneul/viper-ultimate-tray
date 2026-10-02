@@ -275,6 +275,11 @@ class Application(QObject):
                 self.battery_logger_last_duration,
             )
 
+        if self.notification_manager is not None:
+            self.notification_manager.notify_battery_logger_start_failed(
+                reason,
+            )
+
         self.battery_logger_start_failed.emit(reason)
 
     @Slot()

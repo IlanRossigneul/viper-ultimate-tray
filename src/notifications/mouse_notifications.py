@@ -199,3 +199,24 @@ class MouseNotificationManager:
         )
 
         notification.show()
+
+    def notify_battery_logger_start_failed(self, reason: str) -> None:
+        if reason == "mouse_not_detected":
+            message = "Impossible de démarrer la journalisation — souris non détectée."
+        else:
+            message = "Impossible de démarrer la journalisation."
+
+        notification = Notify.Notification.new(
+            "🖱️ Razer Viper Ultimate",
+            message,
+            None,
+        )
+
+        notification.set_timeout(10000)
+
+        notification.set_hint(
+            "desktop-entry",
+            GLib.Variant("s", "viper-ultimate-tray"),
+        )
+
+        notification.show()

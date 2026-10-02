@@ -38,11 +38,6 @@
 * Keep a single SVG per battery percentage and charging state, with the SVG adapting to the active user theme rather than maintaining separate icon files for each theme.
 * Ensure both charging and non-charging battery icons remain readable and visually consistent in light and dark themes.
 
-## Mouse polling performance
-
-* Investigate whether OpenRazer mouse state values can be cached and refreshed only when their underlying configuration or state changes, while preserving the complete `MouseState` data exposed to the application.
-* Measure the impact of reducing redundant D-Bus reads before changing the polling strategy.
-
 ## Ideas to revisit
 
 * Add future ideas here as they come up.
