@@ -59,7 +59,7 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 - **Charge Data**: Analyze recorded charging sessions, manage individual battery samples, and build separate charging models for wired and wireless operation;
 - **Hotplug support**: Automatically detect mouse disconnection and reconnection while keeping monitoring and active logging sessions running;
 - **Mouse Poller**: Continuously retrieve the mouse state in a dedicated background thread without blocking the graphical interface;
-- **Multi-threading**: Run polling, battery logging, and charge-data processing outside the GUI thread to keep the interface responsive.
+- **Multi-threading**: Run mouse polling and active battery logging outside the GUI thread, while charge-data processing is performed synchronously when a logging session is processed.
 
 ### Mouse status
 
@@ -70,17 +70,9 @@ Viper Ultimate Tray continuously monitors the current state of the mouse and pro
 The tray indicator reflects the current battery level and charging state. It also indicates when the mouse is disconnected or in hibernation.
 
 <!-- markdownlint-disable MD033 -->
-<style>
-  table.custom-table th,
-  table.custom-table td {
-    vertical-align: middle;
-    text-align: center;
-    padding: 12px;
-  }
-</style>
-<table class="custom-table">
+<table>
   <thead>
-    <tr>
+    <tr align="center">
       <th>Percent ranges</th>
       <th>31–100 %</th>
       <th>16–30 %</th>
@@ -89,18 +81,18 @@ The tray indicator reflects the current battery level and charging state. It als
     </tr>
   </thead>
   <tbody>
-    <tr>
+    <tr align="center">
       <td>Not Charging</td>
       <td><img src="docs/icons/battery-100.png" width="20" alt="Battery not charging and between 31% and 100%"></td>
       <td><img src="docs/icons/battery-30.png" width="20" alt="Battery not charging and between 16% and 30%"></td>
       <td><img src="docs/icons/battery-15.png" width="20" alt="Battery not charging and between 6% and 15%"></td>
       <td><img src="docs/icons/battery-5.png" width="20" alt="Battery not charging and between 0% and 5%"></td>
     </tr>
-    <tr>
+    <tr align="center">
       <td>Charging</td>
       <td colspan="4"><img src="docs/icons/battery-charging-50.png" width="20" alt="Battery charging"></td>
     </tr>
-    <tr>
+    <tr align="center">
       <td>Disconnected or in hibernation</td>
       <td colspan="4"><img src="src/icons/menu/mouse.svg" width="20" alt="Battery disconnected or in hibernation"></td>
     </tr>
