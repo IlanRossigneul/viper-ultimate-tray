@@ -15,33 +15,33 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 ## Table of contents <!-- omit in toc -->
 
 - [Features](#features)
+  - [Mouse status](#mouse-status)
+    - [Tray indicator](#tray-indicator)
+    - [Tray menu](#tray-menu)
+  - [DPI](#dpi)
+  - [Hibernation](#hibernation)
+  - [Low-power mode](#low-power-mode)
+  - [Notifications](#notifications)
+    - [Low-battery notifications](#low-battery-notifications)
+    - [Charge complete notification](#charge-complete-notification)
+    - [Connection change notification](#connection-change-notification)
+    - [Battery Logger start failure notification](#battery-logger-start-failure-notification)
+  - [Battery logging](#battery-logging)
+    - [Battery Logger](#battery-logger)
+    - [Charge Data](#charge-data)
+      - [Samples](#samples)
+      - [Model](#model)
+  - [Hotplug support](#hotplug-support)
+  - [Mouse Poller](#mouse-poller)
+  - [Multi-threading](#multi-threading)
+- [Architecture](#architecture)
+  - [Project structure](#project-structure)
 - [Requirements](#requirements)
   - [Required](#required)
   - [Dependencies](#dependencies)
 - [Installation](#installation)
   - [Reinstallation](#reinstallation)
 - [Uninstallation](#uninstallation)
-- [Tray / Menu](#tray--menu)
-  - [Tray](#tray)
-  - [Menu](#menu)
-- [Battery monitoring and charge estimation](#battery-monitoring-and-charge-estimation)
-  - [Not charging](#not-charging)
-  - [Charging](#charging)
-- [DPI Control](#dpi-control)
-- [Hibernation](#hibernation)
-- [Low-power threshold](#low-power-threshold)
-- [Battery logging](#battery-logging)
-  - [Battery Logger](#battery-logger)
-  - [Charge Data](#charge-data)
-    - [Samples](#samples)
-    - [Model](#model)
-- [Battery notifications](#battery-notifications)
-  - [Low-battery notifications](#low-battery-notifications)
-  - [Charge complete notification](#charge-complete-notification)
-- [Hotplug support](#hotplug-support)
-- [Mouse Poller](#mouse-poller)
-- [Architecture](#architecture)
-  - [Project structure](#project-structure)
 - [Development and testing](#development-and-testing)
   - [Local checks](#local-checks)
   - [Continuous integration](#continuous-integration)
@@ -50,15 +50,280 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 
 ## Features
 
-- **Battery monitoring and charge estimation**: Monitor the mouse battery level and charging state directly from the tray menu, with an estimated remaining charging time while charging;
-- **Wired and wireless operation**: Detect whether the mouse is connected wirelessly or through USB, including disconnection and reconnection;
-- **DPI control**: Select the mouse DPI directly from the default DPI stages configured on the mouse;
+- **Mouse status**: Monitor the mouse battery level, charging state, connection mode, and estimated charging time directly from the tray menu;
+- **DPI**: Select the mouse DPI from the default DPI stages configured on the mouse;
 - **Hibernation**: Configure the mouse hibernation timeout to control its power consumption while idle;
-- **Low-power threshold**: Configure the battery level at which the mouse enters low-power mode;
-- **Battery logging**: Record battery data during usage and charging sessions, analyze recorded charging sessions, and build separate charging models for wired and wireless operation from real-world data;
-- **Battery notifications**: Receive notifications when the battery reaches configured low-battery thresholds or when charging is complete;
-- **Hotplug support**: Automatically handle mouse disconnection and reconnection without restarting the application;
-- **External tools**: Launch compatible tools such as Polychromatic and Input Remapper directly from the tray menu.
+- **Low-power mode**: Configure the battery threshold at which the mouse enters low-power mode;
+- **Notifications**: Receive notifications for low-battery thresholds, charging completion, and relevant connection or logging events;
+- **Battery Logger**: Record battery activity in separate wired and wireless charging logs while tracking logging sessions and connection changes;
+- **Charge Data**: Analyze recorded charging sessions, manage individual battery samples, and build separate charging models for wired and wireless operation;
+- **Hotplug support**: Automatically detect mouse disconnection and reconnection while keeping monitoring and active logging sessions running;
+- **Mouse Poller**: Continuously retrieve the mouse state in a dedicated background thread without blocking the graphical interface;
+- **Multi-threading**: Run polling, battery logging, and charge-data processing outside the GUI thread to keep the interface responsive.
+
+### Mouse status
+
+Viper Ultimate Tray continuously monitors the current state of the mouse and provides both an at-a-glance status indicator in the system tray and detailed information in the tray menu.
+
+#### Tray indicator
+
+The tray indicator reflects the current battery level and charging state. It also indicates when the mouse is disconnected or in hibernation.
+
+<!-- markdownlint-disable MD033 -->
+<style>
+  table.custom-table th,
+  table.custom-table td {
+    vertical-align: middle;
+    text-align: center;
+    padding: 12px;
+  }
+</style>
+<table class="custom-table">
+  <thead>
+    <tr>
+      <th>Percent ranges</th>
+      <th>31–100 %</th>
+      <th>16–30 %</th>
+      <th>6–15 %</th>
+      <th>0–5 %</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Not Charging</td>
+      <td><img src="docs/icons/battery-100.png" width="20" alt="Battery not charging and between 31% and 100%"></td>
+      <td><img src="docs/icons/battery-30.png" width="20" alt="Battery not charging and between 16% and 30%"></td>
+      <td><img src="docs/icons/battery-15.png" width="20" alt="Battery not charging and between 6% and 15%"></td>
+      <td><img src="docs/icons/battery-5.png" width="20" alt="Battery not charging and between 0% and 5%"></td>
+    </tr>
+    <tr>
+      <td>Charging</td>
+      <td colspan="4"><img src="docs/icons/battery-charging-50.png" width="20" alt="Battery charging"></td>
+    </tr>
+    <tr>
+      <td>Disconnected or in hibernation</td>
+      <td colspan="4"><img src="src/icons/menu/mouse.svg" width="20" alt="Battery disconnected or in hibernation"></td>
+    </tr>
+  </tbody>
+</table>
+<!-- markdownlint-enable MD033 -->
+
+#### Tray menu
+
+The tray menu displays the current connection mode, battery level, and charging state.
+
+![Viper Ultimate Tray with the mouse operating wirelessly](docs/screenshots/tray/normal-wireless.png)
+
+When the mouse is disconnected, mouse-specific controls are disabled until the mouse becomes available again.
+
+![Viper Ultimate Tray with the mouse disconnected](docs/screenshots/tray/disconnected.png)
+
+<!-- markdownlint-disable MD033 -->
+|Percent ranges|76–100 %|51–75 %|26–50 %|11–25 %|0–10 %|
+|:--------:|:--------:|:--------:|:--------:|:--------:|:--------:|
+|Not charging|<img src="src/icons/menu/battery/battery-4.svg" width="32" alt="Battery not charging between 76% and 100%">|<img src="src/icons/menu/battery/battery-3.svg" width="32" alt="Battery not charging between 51% and 75%">|<img src="src/icons/menu/battery/battery-2.svg" width="32" alt="Battery not charging between 26% and 50%">|<img src="src/icons/menu/battery/battery-1.svg" width="32" alt="Battery not charging between 11% and 25%">|<img src="src/icons/menu/battery/battery-0.svg" width="32" alt="Battery not charging between 0% and 10%">|
+|Charging|<img src="src/icons/menu/battery/battery-charging-4.svg" width="32" alt="Battery charging between 76% and 100%">|<img src="src/icons/menu/battery/battery-charging-3.svg" width="32" alt="Battery charging between 51% and 75%">|<img src="src/icons/menu/battery/battery-charging-2.svg" width="32" alt="Battery charging between 26% and 50%">|<img src="src/icons/menu/battery/battery-charging-1.svg" width="32" alt="Battery charging between 11% and 25%">|<img src="src/icons/menu/battery/battery-charging-0.svg" width="32" alt="Battery charging between 0% and 10%">|
+<!-- markdownlint-enable MD033 -->
+
+The application distinguishes between wired and wireless operation and uses the corresponding charging data when estimating the remaining charging time.
+
+![Viper Ultimate Tray while charging through USB](docs/screenshots/tray/charging-wired.png) ![Viper Ultimate Tray while charging wirelessly](docs/screenshots/tray/charging-wireless.png)
+
+### DPI
+
+Viper Ultimate Tray allows the active DPI stage to be selected directly from the tray menu. The available stages are read from the DPI stages configured on the mouse.
+
+![Viper Ultimate Tray DPI stages](docs/screenshots/tray/dpi-stages.png)
+
+Changing the selected stage updates the active DPI stage on the mouse. The corresponding DPI value is applied immediately, and the mouse's physical DPI indicator LED reflects the active stage.
+
+The DPI stage remains synchronized with the mouse in both directions. Selecting a stage in the application changes the mouse DPI and its physical indicator, while changing the DPI stage using the physical DPI button on the mouse updates the active stage displayed in the tray menu.
+
+### Hibernation
+
+Viper Ultimate Tray allows the mouse hibernation timeout to be configured directly from the tray menu.
+
+![Viper Ultimate Tray hibernation settings](docs/screenshots/tray/hibernation.png)
+
+The configured timeout determines how long the mouse can remain idle before entering hibernation.
+
+When the mouse is hibernating, its battery state is no longer available. Viper Ultimate Tray indicates this state in the tray and displays `Batterie : —` in the tray menu.
+
+![Viper Ultimate Tray while the mouse is in hibernation](docs/screenshots/tray/hibernate.png)
+
+### Low-power mode
+
+Viper Ultimate Tray allows you to configure the battery level at which the mouse enters low-power mode.
+
+The available thresholds range from 5% to 25%. The values are provided in 5% increments rather than exposing every possible percentage.
+
+![Viper Ultimate Tray low-power threshold options](docs/screenshots/tray/low-conso.png)
+
+When the selected threshold is reached, the mouse enters low-power mode. In this mode, the tracking speed and sensor acceleration are reduced to conserve battery life.
+
+### Notifications
+
+Viper Ultimate Tray displays desktop notifications for important battery and application events.
+
+#### Low-battery notifications
+
+The application sends a notification when the battery level reaches each low-battery threshold: 30%, 15%, and 5%.
+
+![Viper Ultimate Tray low-battery notification at 30%](docs/screenshots/notifications/30-percent-alert.png) ![Viper Ultimate Tray low-battery notification at 15%](docs/screenshots/notifications/15-percent-alert.png) ![Viper Ultimate Tray low-battery notification at 5%](docs/screenshots/notifications/5-percent-alert.png)
+
+Each threshold is notified only once while the battery level remains at or below that threshold. The notification becomes available again when the battery level rises above the threshold.
+
+#### Charge complete notification
+
+When the battery reaches 100% while charging, Viper Ultimate Tray displays a charge-complete notification.
+
+![Viper Ultimate Tray charge complete notification](docs/screenshots/notifications/100-percent-alert.png)
+
+The notification is displayed only once during a charging cycle and becomes available again when charging stops.
+
+#### Connection change notification
+
+Viper Ultimate Tray notifies the user when the mouse connection mode changes between wired and wireless operation.
+
+![Viper Ultimate Tray connection change notification](docs/screenshots/notifications/connection-change.png)
+
+#### Battery Logger start failure notification
+
+If a battery logging session cannot be started, Viper Ultimate Tray displays a notification explaining the reason when it is available.
+
+![Viper Ultimate Tray Battery Logger start failure notification](docs/screenshots/notifications/battery-logger-start-failed.png)
+
+### Battery logging
+
+Viper Ultimate Tray provides two complementary tools for recording and analyzing battery data: the **Battery Logger** records battery changes over time, while **Charge Data** provides access to recorded charging samples and the charging models built from them.
+
+The recorded charging data is used to build charging models that allow Viper Ultimate Tray to estimate the remaining time until the battery is fully charged. When the mouse is charging, this estimate is displayed directly in the tray menu.
+
+The logger and the charge data can be opened from **Journalisation** in the tray menu.
+
+![Viper Ultimate Tray Journalisation menu](docs/screenshots/tray/battery-logs.png)
+
+#### Battery Logger
+
+The **Battery Logger** records battery data while the mouse is being used or charged.
+
+When the Battery Logger window is opened without an active logging session, the window displays the available controls and an empty log.
+
+![Viper Ultimate Tray Battery Logger before logging starts](docs/screenshots/battery-logging/battery-logger-unstarted.png)
+
+Clicking **Démarrer** starts a logging session. The window displays the detected connection mode and the logging interval. The logging duration is updated while the session is active.
+
+![Viper Ultimate Tray Battery Logger while logging](docs/screenshots/battery-logging/battery-logger-started.png)
+
+The logger checks the battery state every second by default, but records a new entry only when the battery percentage or charging state changes.
+
+While logging is active, the **Journalisation** menu displays the elapsed time of the current logging session.
+
+![Viper Ultimate Tray Journalisation menu with battery logging in progress](docs/screenshots/tray/battery-logging-started.png)
+
+If the mouse switches between wired and wireless operation while logging, the current session is ended and processed, and a new session is started for the new connection mode.
+
+Clicking **Arrêter** stops the logging session. The final duration remains displayed in the window after the logger has stopped.
+
+![Viper Ultimate Tray Battery Logger after logging has stopped](docs/screenshots/battery-logging/battery-logger-finished.png)
+
+#### Charge Data
+
+The **Charge Data** window provides access to the charging samples recorded by the Battery Logger and to the charging models calculated from those samples.
+
+##### Samples
+
+The **Samples** tab lists the recorded charging samples separately for wired and wireless charging.
+
+When no sample is selected, the detail area remains empty.
+
+![Viper Ultimate Tray Charge Data samples without a selected sample](docs/screenshots/battery-logging/charge-data-samples-unselected.png)
+
+Selecting a sample displays its charging mode, creation date, and the recorded duration for each battery level.
+
+![Viper Ultimate Tray selected charge data sample](docs/screenshots/battery-logging/charge-data-samples-selected.png)
+
+A selected sample can be modified with **Modifier**. During editing, the recorded durations can be changed or removed. Levels before the first recorded duration can be left empty or set to zero. Once the sequence of recorded durations has started, leaving a level empty or setting it to zero ends the sequence, and all following levels must also be empty or set to zero.
+
+![Viper Ultimate Tray editing a charge data sample](docs/screenshots/battery-logging/charge-data-samples-editing.png)
+
+If the entered values are invalid, the changes are rejected and a warning is displayed.
+
+![Viper Ultimate Tray invalid charge data sample modification](docs/screenshots/battery-logging/charge-data-samples-editing-cancel.png)
+
+When the entered values are valid, clicking **Enregistrer** saves the modifications and displays a confirmation message.
+
+![Viper Ultimate Tray successful charge data sample modification](docs/screenshots/battery-logging/charge-data-samples-editing-success.png)
+
+A selected sample can also be deleted with **Supprimer**. The application asks for confirmation before permanently deleting the sample.
+
+![Viper Ultimate Tray charge data sample deletion confirmation](docs/screenshots/battery-logging/charge-data-samples-delete-confirmation.png)
+
+After the deletion has been completed, a confirmation message is displayed.
+
+![Viper Ultimate Tray charge data sample deletion confirmation message](docs/screenshots/battery-logging/charge-data-samples-delete-confirmed.png)
+
+##### Model
+
+The **Model** tab displays the charging models calculated from the recorded samples.
+
+Separate models are maintained for wired and wireless charging. For each battery level, the table displays the average duration for that level and the cumulative duration required to reach 100%, together with the differences between wired and wireless charging.
+
+The model is displayed in read-only mode.
+
+![Viper Ultimate Tray charge data model](docs/screenshots/battery-logging/charge-data-model.png)
+
+### Hotplug support
+
+Viper Ultimate Tray continuously monitors the mouse connection and automatically detects disconnection and reconnection events.
+
+The mouse state is polled every two seconds by default. If the mouse cannot be detected or its state cannot be retrieved, the application switches to a disconnected state. When the mouse becomes available again, its complete state is retrieved and the application resumes normal monitoring.
+
+A temporary disconnection does not terminate an active Battery Logger session. The logger continues waiting for the mouse to become available again and resumes recording when it reconnects.
+
+If the connection mode changes between wired and wireless operation, the current logging session is closed and processed before a new session is started for the new mode. This keeps wired and wireless charging data in separate logging sessions and allows each session to be analyzed independently.
+
+The application also updates the tray status and notification state when the connection changes.
+
+### Mouse Poller
+
+The **Mouse Poller** is responsible for continuously retrieving the current mouse state without blocking the graphical interface.
+
+The poller runs in a dedicated Python thread and retrieves the complete `MouseState` at a fixed interval of two seconds by default. The state includes the connection status, battery level, charging state and source, DPI configuration, hibernation timeout, and low-power threshold.
+
+Each polling cycle produces a `MouseState` and emits it through a Qt signal. The application processes the state on the GUI side, where it updates the tray indicator, menu, notifications, and other components that depend on the current mouse state.
+
+Connection failures are represented by a disconnected `MouseState` rather than being propagated to the graphical interface as polling exceptions. This allows the same polling mechanism to handle normal operation, temporary disconnection, and reconnection.
+
+### Multi-threading
+
+Viper Ultimate Tray keeps long-running and potentially blocking hardware operations outside the graphical interface thread.
+
+The **Mouse Poller** runs in a dedicated thread and continuously retrieves the current mouse state. The **Battery Logger** also runs in its own thread while a logging session is active, allowing battery monitoring and device detection to continue without blocking the GUI.
+
+The Battery Logger can trigger charge-data analysis when a logging session ends, including when a connection-mode change closes the current session. Charge analysis runs synchronously in the thread that invokes it rather than owning a separate worker thread.
+
+Results produced by background operations are not sent directly to GUI handlers. The application uses private Qt signals to marshal worker-thread callbacks back to the GUI thread before updating windows, menus, notifications, and other user-interface components.
+
+This separation keeps the graphical interface responsive while allowing hardware polling, battery logging, and background log processing to run independently where appropriate.
+
+## Architecture
+
+Viper Ultimate Tray is organized around a central `Application` object that coordinates mouse monitoring, device control, battery logging, charge-data analysis, notifications, and the KDE Plasma interface.
+
+![Architecture](docs/architecture-viper-ultimate-tray.svg)
+
+`MousePoller` continuously retrieves the complete mouse state through OpenRazer and provides it to the application. `MouseController` handles changes to the mouse configuration, while `StatusView` updates the tray indicator and menu from the current state.
+
+`LogManager` coordinates battery logging and charge-data processing. `BatteryLogger` records battery activity in a dedicated thread, while `ChargeAnalyzer` processes completed charging sessions synchronously and maintains the recorded samples and charging models. The archiver and deleter handle the battery log files after processing.
+
+The graphical interface is kept separate from long-running hardware and logging operations. Background components communicate their results through Qt signals so that GUI updates are handled safely by the application thread.
+
+### Project structure
+
+The repository separates the application source code, tests, documentation, installation scripts, and project configuration.
+
+![Project structure tree](docs/project-structure-viper-ultimate-tray.svg)
 
 ## Requirements
 
@@ -75,7 +340,7 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 
 ### Dependencies
 
-The installer automatically installs missing dependencies and installs newer package versions when the installed version does not meet the required minimum.
+The installer automatically installs missing dependencies and updates dependencies that do not meet the required minimum versions.
 
 The following packages are managed automatically:
 
@@ -152,276 +417,9 @@ The uninstaller:
 
 The uninstaller does not remove the dependencies installed for Viper Ultimate Tray automatically.
 
+The application runtime and its stored battery data are removed during uninstallation.
+
 At the end of the uninstallation, the uninstaller displays the optional `pacman` and `paru` commands that can be used to remove these dependencies manually.
-
-## Tray / Menu
-
-### Tray
-
-The tray icon provides an at-a-glance overview of the mouse status.
-
-Its appearance reflects the current battery level and whether the mouse is charging or discharging. The tray icon also indicates when the mouse is disconnected or in hibernation, using the same icon for both states.
-
-<!-- markdownlint-disable MD033 -->
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="docs/icons/battery-31.png" width="20" alt="Battery not charging and between 31% and 100%">
-  <span>31–100 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="docs/icons/battery-16.png" width="20" alt="Battery not charging and between 16% and 30%">
-  <span>16–30 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="docs/icons/battery-6.png" width="20" alt="Battery not charging and between 6% and 15%">
-  <span>6–15 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="docs/icons/battery-1.png" width="20" alt="Battery not charging and between 0% and 5%">
-  <span>0–5 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="docs/icons/battery-charging-100.png" width="20" alt="Battery charging">
-  <span>0–100 %</span>
-</div>
-
-<div style="display: flex; align-items: center; gap: 30px;">
-  <img src="src/icons/menu/mouse.svg" width="20" alt="Battery disconnected or in hibernation">
-  <span>Mouse disconnected or in hibernation</span>
-</div>
-<!-- markdownlint-enable MD033 -->
-
-### Menu
-
-The tray menu provides access to the mouse status and the application's main controls.
-
-- **Connection**: Indicates whether the mouse is connected through USB or wirelessly;
-- **Battery**: Displays the current battery level and charging state;
-- **DPI**: Displays the currently selected DPI and provides access to the available DPI stages;
-- **Hibernation**: Configures the mouse hibernation timeout;
-- **Low-power threshold**: Configures the battery level at which the mouse enters low-power mode;
-- **Battery logging**: Provides access to the battery logger and charge data management;
-- **Polychromatic**: Provides a direct link to launch Polychromatic when it is installed;
-- **Input Remapper**: Provides a direct link to launch Input Remapper when it is installed.
-
-## Battery monitoring and charge estimation
-
-Viper Ultimate Tray continuously monitors the Razer Viper Ultimate battery status and automatically refreshes the tray menu every 2 seconds. The displayed information is updated without requiring the menu to be reopened.
-
-The battery icon in the tray menu changes according to the current battery level, using several charge-level stages. It also reflects the current battery state: when the mouse is charging, a yellow lightning bolt is displayed on the battery icon.
-
-### Not charging
-
-When the mouse is not charging, the tray menu displays the current battery level and wireless connection status.
-
-![Viper Ultimate Tray with the mouse operating wirelessly](docs/screenshots/tray/normal-wireless.png)
-
-The battery icon reflects the current charge level.
-
-<!-- markdownlint-disable MD033 -->
-|<img src="src/icons/menu/battery/battery-4.svg" width="32" alt="Battery not charging between 76% and 100%">|<img src="src/icons/menu/battery/battery-3.svg" width="32" alt="Battery not charging between 51% and 75%">|<img src="src/icons/menu/battery/battery-2.svg" width="32" alt="Battery not charging between 26% and 50%">|<img src="src/icons/menu/battery/battery-1.svg" width="32" alt="Battery not charging between 11% and 25%">|<img src="src/icons/menu/battery/battery-0.svg" width="32" alt="Battery not charging between 0% and 10%">|
-|:--------:|:--------:|:--------:|:--------:|:--------:|
-|76–100 %|51–75 %|26–50 %|11–25 %|0–10 %|
-<!-- markdownlint-enable MD033 -->
-
-### Charging
-
-When the mouse is charging, the tray menu indicates that charging is in progress and displays an estimated remaining charging time based on the available charging data.
-
-The application maintains separate models for wired and wireless charging, allowing the estimated charging time to reflect the charging method currently in use.
-
-![Viper Ultimate Tray while charging through USB](docs/screenshots/tray/charging-wired.png) ![Viper Ultimate Tray while charging wirelessly](docs/screenshots/tray/charging-wireless.png)
-
-The battery icon reflects the current charge level and displays a yellow lightning bolt to indicate that the battery is charging.
-
-<!-- markdownlint-disable MD033 -->
-|<img src="src/icons/menu/battery/battery-charging-4.svg" width="32" alt="Battery charging between 76% and 100%">|<img src="src/icons/menu/battery/battery-charging-3.svg" width="32" alt="Battery charging between 51% and 75%">|<img src="src/icons/menu/battery/battery-charging-2.svg" width="32" alt="Battery charging between 26% and 50%">|<img src="src/icons/menu/battery/battery-charging-1.svg" width="32" alt="Battery charging between 11% and 25%">|<img src="src/icons/menu/battery/battery-charging-0.svg" width="32" alt="Battery charging between 0% and 10%">|
-|:--------:|:--------:|:--------:|:--------:|:--------:|
-|76–100 %|51–75 %|26–50 %|11–25 %|0–10 %|
-<!-- markdownlint-enable MD033 -->
-
-## DPI Control
-
-Viper Ultimate Tray allows you to change the mouse DPI directly from the tray menu.
-
-The available DPI values are the DPI stages currently configured on the mouse. Selecting a value immediately switches the mouse to that DPI stage.
-
-![Viper Ultimate Tray DPI stages](docs/screenshots/tray/dpi-stages.png)
-
-The selected DPI stage is synchronized with the mouse: changing the DPI from the tray updates the corresponding DPI indicator LED on the mouse, while changing the DPI directly from the mouse updates the selected stage in the **DPI Stages** submenu.
-
-## Hibernation
-
-Viper Ultimate Tray allows you to configure the mouse hibernation timeout directly from the tray menu.
-
-The available timeout values can be selected from the **Hibernation** submenu.
-
-![Viper Ultimate Tray hibernation timeout options](docs/screenshots/tray/hibernation.png)
-
-When the mouse enters hibernation, its battery level is no longer available. The tray menu therefore displays `Batterie : —` while the mouse is asleep.
-
-![Viper Ultimate Tray while the mouse is in hibernation](docs/screenshots/tray/hibernate.png)
-
-## Low-power threshold
-
-Viper Ultimate Tray allows you to configure the battery level at which the mouse enters low-power mode.
-
-The available thresholds range from 5% to 25%. The values are provided in 5% increments rather than exposing every possible percentage.
-
-![Viper Ultimate Tray low-power threshold options](docs/screenshots/tray/low-conso.png)
-
-When the selected threshold is reached, the mouse enters low-power mode. In this mode, the tracking speed and sensor acceleration are reduced to conserve battery life.
-
-## Battery logging
-
-Viper Ultimate Tray provides two complementary tools for recording and analyzing battery data: the **Battery Logger** records battery changes over time, while **Charge Data** provides access to recorded charging samples and the charging models built from them.
-
-### Battery Logger
-
-The **Battery Logger** records battery data while the mouse is being used or charged.
-
-The logger can be opened from **Journalisation** in the tray menu.
-
-![Viper Ultimate Tray Journalisation menu](docs/screenshots/tray/battery-logs.png)
-
-When the Battery Logger window is opened without an active logging session, the window displays the available controls and an empty log.
-
-![Viper Ultimate Tray Battery Logger before logging starts](docs/screenshots/battery-logging/battery-logger-unstarted.png)
-
-Clicking **Démarrer** starts the battery logger. The window displays the detected initial mode, the logging interval, and the duration of the current logging session. The duration is updated while logging is active.
-
-![Viper Ultimate Tray Battery Logger while logging](docs/screenshots/battery-logging/battery-logger-started.png)
-
-The logger records a new entry when the battery percentage or charging state changes.
-
-While logging is active, the **Journalisation** menu displays the elapsed time of the current logging session.
-
-![Viper Ultimate Tray Journalisation menu with battery logging in progress](docs/screenshots/tray/battery-logging-started.png)
-
-Clicking **Arrêter** stops the logging session. The final duration remains displayed in the window after the logger has stopped.
-
-![Viper Ultimate Tray Battery Logger after logging has stopped](docs/screenshots/battery-logging/battery-logger-finished.png)
-
-### Charge Data
-
-The **Charge Data** window provides access to the charging samples recorded by the Battery Logger and to the charging models calculated from those samples.
-
-#### Samples
-
-The **Samples** tab lists the recorded charging samples separately for wired and wireless charging.
-
-When no sample is selected, the detail area remains empty.
-
-![Viper Ultimate Tray Charge Data samples without a selected sample](docs/screenshots/battery-logging/charge-data-samples-unselected.png)
-
-Selecting a sample displays its charging mode, creation date, and the recorded duration for each battery level.
-
-![Viper Ultimate Tray selected charge data sample](docs/screenshots/battery-logging/charge-data-samples-selected.png)
-
-A selected sample can be modified with **Modifier**. During editing, the recorded durations can be changed or removed according to the validation rules displayed below the table.
-
-![Viper Ultimate Tray editing a charge data sample](docs/screenshots/battery-logging/charge-data-samples-editing.png)
-
-If the entered values are invalid, the changes are rejected and a warning is displayed.
-
-![Viper Ultimate Tray invalid charge data sample modification](docs/screenshots/battery-logging/charge-data-samples-editing-cancel.png)
-
-When the values are valid, clicking **Enregistrer** saves the modifications and displays a confirmation message.
-
-![Viper Ultimate Tray successful charge data sample modification](docs/screenshots/battery-logging/charge-data-samples-editing-success.png)
-
-Samples can also be deleted with **Supprimer**. The application asks for confirmation before permanently deleting the selected sample.
-
-![Viper Ultimate Tray charge data sample deletion confirmation](docs/screenshots/battery-logging/charge-data-samples-delete-confirmation.png)
-
-After the deletion has been completed, a confirmation message is displayed.
-
-![Viper Ultimate Tray charge data sample deletion confirmation message](docs/screenshots/battery-logging/charge-data-samples-delete-confirmed.png)
-
-#### Model
-
-The **Model** tab displays the charging models calculated from the recorded samples.
-
-Separate models are maintained for wired and wireless charging. For each battery level, the table displays the average duration for that level and the cumulative duration required to reach 100%, together with the differences between wired and wireless charging.
-
-The model is displayed in read-only mode.
-
-![Viper Ultimate Tray charge data model](docs/screenshots/battery-logging/charge-data-model.png)
-
-## Battery notifications
-
-Viper Ultimate Tray displays desktop notifications when the mouse reaches specific battery levels while discharging, and when charging is complete.
-
-### Low-battery notifications
-
-Three low-battery notifications are available:
-
-- **30%**: displayed when the battery falls to 30% or below;
-- **15%**: displayed when the battery falls to 15% or below;
-- **5%**: displayed when the battery falls to 5% or below.
-
-![Viper Ultimate Tray 30% battery notification](docs/screenshots/notifications/30-percent-alert.png) ![Viper Ultimate Tray 15% battery notification](docs/screenshots/notifications/15-percent-alert.png) ![Viper Ultimate Tray 5% battery notification](docs/screenshots/notifications/5-percent-alert.png)
-
-Each low-battery notification is displayed once when its threshold is crossed. It becomes available again after the battery level rises above the corresponding threshold.
-
-### Charge complete notification
-
-When the mouse reaches 100% while charging, Viper Ultimate Tray displays a notification indicating that charging is complete.
-
-![Viper Ultimate Tray 100% charge complete notification](docs/screenshots/notifications/100-percent-alert.png)
-
-The charge complete notification is displayed once per charging cycle and becomes available again when charging stops.
-
-## Hotplug support
-
-Viper Ultimate Tray automatically detects when the mouse is disconnected or reconnected.
-
-When the mouse is disconnected, the tray icon changes to the disconnected state and the mouse information is no longer available.
-
-![Viper Ultimate Tray with the mouse disconnected](docs/screenshots/tray/disconnected.png)
-
-Battery logging remains active if it was already running, allowing it to be stopped while the mouse is disconnected. If logging is not running, the **Démarrer** action is disabled until the mouse is reconnected.
-
-When the mouse becomes available again, Viper Ultimate Tray automatically detects the reconnection and resumes monitoring the mouse. The battery logging controls are restored according to the current logging state.
-
-No application restart is required.
-
-## Mouse Poller
-
-The **Mouse Poller** is responsible for periodically checking the mouse state and notifying the application of the latest state.
-
-The polling runs in a dedicated background thread, independently from the Qt application thread, with an interval of **2 seconds** by default.
-
-For each poll, the current mouse state is retrieved through the OpenRazer interface:
-
-- If the mouse is connected, the current `MouseState` is passed to the application;
-- If the mouse reports that it is not connected, the application is notified of the disconnection;
-- If retrieving the mouse state raises an exception, the mouse is also treated as disconnected.
-
-The poller keeps track of the previous connection state so that connection and disconnection events are logged only when the state actually changes.
-
-When a previously disconnected mouse becomes available again, the poller notifies the application with the new `MouseState`, allowing the application to restore its normal state and controls.
-
-The polling thread runs continuously while the application is running and does not block the Qt application thread. A mouse disconnection does not require the application to be restarted.
-
-## Architecture
-
-Viper Ultimate Tray is organized into separate modules for application management, battery monitoring and charge estimation, battery logging, Razer device control, notifications, and the KDE Plasma user interface.
-
-The application entry point creates the main application object, which coordinates the tray interface, mouse state monitoring, battery logging, notifications, and mouse controls.
-
-The Razer-specific modules provide the interface with OpenRazer and handle mouse state retrieval, device control, and connection monitoring.
-
-Battery logging and charge estimation are kept separate from the user interface. This allows battery data to be collected, analyzed, archived, and used to build charging models independently from the tray controls.
-
-### Project structure
-
-The repository is organized into the application source code and tests.
-
-![Project structure tree](docs/project-structure-viper-ultimate-tray.svg)
 
 ## Development and testing
 

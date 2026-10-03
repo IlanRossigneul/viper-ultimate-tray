@@ -115,6 +115,7 @@ class StatusView:
             self.name_item.setText(state.device_name)
 
             self.battery_item.setText("Batterie : —")
+            self.battery_item.setEnabled(False)
 
             return
 
