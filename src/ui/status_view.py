@@ -8,7 +8,7 @@ from PySide6.QtSvg import QSvgRenderer
 
 from battery.estimation import get_charge_estimation
 from battery.icons import get_battery_icon, get_tray_icon
-from razer.mouse_state import MouseState
+from razer.mouse_state import DPIStage, MouseState
 
 
 class StatusView:
@@ -67,6 +67,15 @@ class StatusView:
         painter.end()
 
         return QPixmap.fromImage(image)
+
+    @staticmethod
+    def format_dpi(dpi: tuple[int, int]) -> str:
+        x, y = dpi
+        return str(x) if x == y else f"{x} x, {y} y"
+
+    @staticmethod
+    def format_dpi_stage(stage: DPIStage) -> str:
+        return StatusView.format_dpi((stage.x, stage.y))
 
     def show_disconnected(self) -> None:
         self.indicator.setIconByPixmap(QPixmap(str(self.menu_icon_dir / "mouse.svg")))
@@ -166,7 +175,8 @@ class StatusView:
 
         self.battery_item.setText(battery_text)
 
-        self.dpi_item.setText(f"DPI : {state.dpi}")
+        if state.dpi is not None:
+            self.dpi_item.setText(f"DPI : {self.format_dpi(state.dpi)}")
 
         self.stage_item.setText(
             f"Plage DPI : {state.active_stage} / {len(state.stages)}"
@@ -175,7 +185,7 @@ class StatusView:
         for index, stage in enumerate(state.stages, start=1):
             item = self.stage_items[index - 1]
 
-            item.setText(f"{stage:>4}")
+            item.setText(f"{self.format_dpi_stage(stage):>16}")
             item.setChecked(index == state.active_stage)
 
         self.idle_item.setText(f"Hibernation : {state.idle_minutes} min")

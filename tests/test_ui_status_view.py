@@ -2,7 +2,7 @@ from PySide6.QtGui import QAction, QActionGroup
 from PySide6.QtWidgets import QApplication
 
 from config.paths import MENU_BATTERY_ICON_DIR, MENU_ICON_DIR, TRAY_ICON_DIR
-from razer.mouse_state import ChargingSource, MouseState
+from razer.mouse_state import ChargingSource, DPIStage, MouseState
 from ui.status_view import StatusView
 
 
@@ -95,9 +95,13 @@ def _create_connected_state(
         battery=battery,
         charging=charging,
         charging_source=charging_source,
-        dpi=1600,
+        dpi=(1600, 1600),
         active_stage=2,
-        stages=[800, 1600, 3200],
+        stages=[
+            DPIStage(800, 800),
+            DPIStage(1600, 1600),
+            DPIStage(3200, 3200),
+        ],
         idle_minutes=5,
         low_battery_threshold=15,
     )
@@ -175,9 +179,9 @@ def test_show_connected_updates_status_from_mouse_state() -> None:
     assert all(item.isEnabled() for item in view.idle_items)
     assert all(item.isEnabled() for item in view.low_battery_items)
 
-    assert view.stage_items[0].text() == " 800"
-    assert view.stage_items[1].text() == "1600"
-    assert view.stage_items[2].text() == "3200"
+    assert view.stage_items[0].text() == "             800"
+    assert view.stage_items[1].text() == "            1600"
+    assert view.stage_items[2].text() == "            3200"
 
     assert view.stage_items[0].isChecked() is False
     assert view.stage_items[1].isChecked() is True
@@ -185,6 +189,27 @@ def test_show_connected_updates_status_from_mouse_state() -> None:
 
     assert view.idle_items[10].isChecked() is True
     assert view.low_battery_items[2].isChecked() is True
+
+
+def test_show_connected_displays_asymmetric_dpi() -> None:
+    _get_app()
+
+    view, _ = _create_status_view()
+    state = _create_connected_state()
+
+    state.dpi = (800, 300)
+    state.stages = [
+        DPIStage(400, 400),
+        DPIStage(800, 300),
+        DPIStage(1600, 1600),
+    ]
+
+    view.show_connected(state)
+
+    assert view.dpi_item.text() == "DPI : 800 x, 300 y"
+    assert view.stage_items[0].text() == "             400"
+    assert view.stage_items[1].text() == "    800 x, 300 y"
+    assert view.stage_items[2].text() == "            1600"
 
 
 def test_show_connected_updates_selection_for_current_values() -> None:
@@ -198,7 +223,11 @@ def test_show_connected_updates_selection_for_current_values() -> None:
     state.idle_minutes = 15
     state.low_battery_threshold = 25
     state.active_stage = 3
-    state.stages = [800, 1600, 3200]
+    state.stages = [
+        DPIStage(800, 800),
+        DPIStage(1600, 1600),
+        DPIStage(3200, 3200),
+    ]
 
     view.show_connected(state)
 

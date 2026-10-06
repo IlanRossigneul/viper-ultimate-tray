@@ -129,3 +129,36 @@ def test_set_low_battery_threshold_returns_false_when_setting_threshold_fails(
     controller = _create_controller(monkeypatch, mouse)
 
     assert controller.set_low_battery_threshold(20) is False
+
+
+def test_set_dpi_returns_false_when_mouse_is_not_found(monkeypatch) -> None:
+    controller = _create_controller(monkeypatch)
+
+    assert controller.set_dpi(1600, 1600) is False
+
+
+def test_set_dpi_updates_both_axes(monkeypatch) -> None:
+    mouse = SimpleNamespace(dpi=(800, 800))
+    controller = _create_controller(monkeypatch, mouse)
+
+    assert controller.set_dpi(1600, 3200) is True
+    assert mouse.dpi == (1600, 3200)
+
+
+def test_set_dpi_returns_false_when_setting_dpi_fails(monkeypatch) -> None:
+    class FailingMouse:
+        def __init__(self):
+            self._dpi = (800, 800)
+
+        @property
+        def dpi(self):
+            return self._dpi
+
+        @dpi.setter
+        def dpi(self, value):
+            raise RuntimeError("DPI unavailable")
+
+    mouse = FailingMouse()
+    controller = _create_controller(monkeypatch, mouse)
+
+    assert controller.set_dpi(1600, 3200) is False

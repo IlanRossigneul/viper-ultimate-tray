@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QApplication
 
 from app.application import Application
 from battery_logs.battery_logger import BatteryLogEntry
-from razer.mouse_state import MouseState
+from razer.mouse_state import DPIStage, MouseState
 
 
 def _connected_state() -> MouseState:
@@ -20,9 +20,12 @@ def _connected_state() -> MouseState:
         battery=75.0,
         charging=False,
         charging_source=None,
-        dpi=800,
+        dpi=(800, 800),
         active_stage=1,
-        stages=[800, 1600],
+        stages=[
+            DPIStage(x=800, y=800),
+            DPIStage(x=1600, y=1600),
+        ],
         idle_minutes=5,
         low_battery_threshold=15,
     )
@@ -297,6 +300,28 @@ def test_set_active_stage_logs_error_when_controller_fails() -> None:
     logger_error.assert_called_once_with("Failed to change the DPI stage.")
 
 
+def test_set_dpi_updates_dpi() -> None:
+    application = Application()
+    application.mouse_controller = MagicMock()
+    application.mouse_controller.set_dpi.return_value = True
+
+    application._set_dpi(1600, 3200)
+
+    application.mouse_controller.set_dpi.assert_called_once_with(1600, 3200)
+
+
+def test_set_dpi_logs_error_when_controller_fails() -> None:
+    application = Application()
+    application.mouse_controller = MagicMock()
+    application.mouse_controller.set_dpi.return_value = False
+
+    with patch("app.application.logger.error") as logger_error:
+        application._set_dpi(1600, 3200)
+
+    application.mouse_controller.set_dpi.assert_called_once_with(1600, 3200)
+    logger_error.assert_called_once_with("Failed to change the DPI.")
+
+
 def test_set_idle_time_logs_error_when_controller_fails() -> None:
     application = Application()
     application.mouse_controller = MagicMock()
@@ -520,6 +545,14 @@ def test_run_orchestrates_application_startup() -> None:
         application._open_battery_logger,
     )
 
+    widgets.charge_data_action.triggered.connect.assert_called_once_with(
+        application._open_charge_data,
+    )
+
+    widgets.dpi_edit_action.triggered.connect.assert_called_once_with(
+        application._open_set_dpi,
+    )
+
     mouse_controller.assert_called_once_with()
     create_status_view.assert_called_once_with(widgets, charge_models)
 
@@ -661,6 +694,59 @@ def test_open_charge_data_creates_and_initializes_window() -> None:
     window.activateWindow.assert_called_once_with()
 
     assert application.charge_data_window is window
+
+
+def test_open_set_dpi_creates_and_shows_window() -> None:
+    application = Application()
+    state = _connected_state()
+    state.dpi = (800, 1600)
+
+    with (
+        patch("app.application.get_mouse_state", return_value=state),
+        patch("app.application.SetDPIWindow") as window_class,
+    ):
+        application._open_set_dpi()
+
+    window = window_class.return_value
+
+    window_class.assert_called_once_with((800, 1600))
+    window.show.assert_called_once_with()
+    window.raise_.assert_called_once_with()
+    window.activateWindow.assert_called_once_with()
+
+    assert application.set_dpi_window is window
+
+
+def test_open_set_dpi_reuses_existing_window_and_refreshes_dpi() -> None:
+    application = Application()
+    application.set_dpi_window = MagicMock()
+
+    state = _connected_state()
+    state.dpi = (1600, 3200)
+
+    with patch("app.application.get_mouse_state", return_value=state):
+        application._open_set_dpi()
+
+    application.set_dpi_window.x_spinbox.setValue.assert_called_once_with(1600)
+    application.set_dpi_window.y_spinbox.setValue.assert_called_once_with(3200)
+
+    application.set_dpi_window.show.assert_called_once_with()
+    application.set_dpi_window.raise_.assert_called_once_with()
+    application.set_dpi_window.activateWindow.assert_called_once_with()
+
+
+def test_open_set_dpi_does_nothing_without_current_dpi() -> None:
+    application = Application()
+
+    state = _disconnected_state()
+
+    with (
+        patch("app.application.get_mouse_state", return_value=state),
+        patch("app.application.SetDPIWindow") as window_class,
+    ):
+        application._open_set_dpi()
+
+    window_class.assert_not_called()
 
 
 def test_open_charge_data_connects_window_signals() -> None:

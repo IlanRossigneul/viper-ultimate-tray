@@ -29,6 +29,7 @@ from ui.dpi_menu import create_dpi_stage_menu
 from ui.idle_menu import create_idle_time_menu
 from ui.low_battery_menu import create_low_battery_menu
 from ui.menu import MenuWidgets, create_menu
+from ui.set_dpi_window import SetDPIWindow
 from ui.status_view import StatusView
 from ui.tray_view import create_indicator
 
@@ -63,6 +64,7 @@ class Application(QObject):
         self.poller: MousePoller | None = None
         self.log_manager: LogManager | None = None
         self.menu_widgets: MenuWidgets | None = None
+        self.set_dpi_window: SetDPIWindow | None = None
         self.battery_logger_window: BatteryLoggerWindow | None = None
         self.charge_data_window: ChargeDataWindow | None = None
         self.battery_logger_started_at: datetime | None = None
@@ -378,6 +380,33 @@ class Application(QObject):
                 created_at,
             )
 
+    def _open_set_dpi(self) -> None:
+        state = get_mouse_state()
+
+        if not state.connected or state.dpi is None:
+            return
+
+        if self.set_dpi_window is None:
+            self.set_dpi_window = SetDPIWindow(state.dpi)
+
+            self.set_dpi_window.dpi_changed.connect(
+                self._set_dpi,
+            )
+        else:
+            self.set_dpi_window.x_spinbox.setValue(state.dpi[0])
+            self.set_dpi_window.y_spinbox.setValue(state.dpi[1])
+
+        self.set_dpi_window.show()
+        self.set_dpi_window.raise_()
+        self.set_dpi_window.activateWindow()
+
+    def _set_dpi(self, x: int, y: int) -> None:
+        if self.mouse_controller is None:
+            return
+
+        if not self.mouse_controller.set_dpi(x, y):
+            logger.error("Failed to change the DPI.")
+
     def _set_active_stage(self, stage_number: int) -> None:
         if not self.mouse_controller.set_dpi_stage(stage_number):
             logger.error("Failed to change the DPI stage.")
@@ -461,6 +490,10 @@ class Application(QObject):
 
         self.menu_widgets.charge_data_action.triggered.connect(
             self._open_charge_data,
+        )
+
+        self.menu_widgets.dpi_edit_action.triggered.connect(
+            self._open_set_dpi,
         )
 
         self.mouse_controller = MouseController()

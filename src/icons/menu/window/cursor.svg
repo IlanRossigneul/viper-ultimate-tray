@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="16"
+   height="24"
+   viewBox="-24 -24 0 0"
+   fill="#00ff00"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="cursor.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="6.52"
+     inkscape:cx="-0.84355828"
+     inkscape:cy="-0.38343558"
+     inkscape:window-width="1920"
+     inkscape:window-height="1014"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <title
+     fill="#00ff00"
+     id="title1">cursor-fill</title>
+  <path
+     fill="#00ff00"
+     d="M 1.017501,1.2708475 A 1.3609161,1.3555426 0 0 1 3.2790962,0.34168478 L 15.539714,11.173702 c 0.906865,0.801002 0.389717,2.293332 -0.819023,2.368502 l -3.820464,0.23414 2.82452,6.723491 a 1.8557948,1.8484672 0 0 1 -0.983572,2.41533 l -2.210869,0.936557 A 1.8557948,1.8484672 0 0 1 8.093028,22.872034 l -2.9940157,-7.05375 -2.8480264,2.451067 c -0.9130509,0.784983 -2.32469225,0.08626 -2.24798605,-1.112777 z"
+     id="path1"
+     style="stroke-width:1.23475" />
+  <metadata
+     id="metadata1">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:title>cursor-fill</dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+</svg>

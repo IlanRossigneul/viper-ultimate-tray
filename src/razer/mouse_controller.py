@@ -5,6 +5,19 @@ class MouseController:
     def __init__(self) -> None:
         self._device_manager = create_device_manager()
 
+    def set_dpi(self, x: int, y: int) -> bool:
+        mouse = find_viper_ultimate_device(self._device_manager)
+
+        if mouse is None:
+            return False
+
+        try:
+            mouse.dpi = (x, y)
+            return True
+
+        except Exception:  # noqa: BLE001
+            return False
+
     def set_dpi_stage(self, stage_number: int) -> bool:
         mouse = find_viper_ultimate_device(self._device_manager)
 

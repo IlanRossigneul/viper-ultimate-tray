@@ -14,6 +14,12 @@ class ChargingSource(Enum):
 
 
 @dataclass(slots=True)
+class DPIStage:
+    x: int
+    y: int
+
+
+@dataclass(slots=True)
 class MouseState:
     connected: bool
 
@@ -23,17 +29,13 @@ class MouseState:
     charging: bool | None
     charging_source: ChargingSource | None
 
-    dpi: int | None
+    dpi: tuple[int, int] | None
 
     active_stage: int | None
-    stages: list[int]
+    stages: list[DPIStage]
 
     idle_minutes: int | None
     low_battery_threshold: int | None
-
-
-def _convert_dpi_stages(stages: list[tuple[int, int]]) -> list[int]:
-    return [dpi_x for dpi_x, _ in stages]
 
 
 def _get_disconnected_state() -> MouseState:
@@ -72,9 +74,11 @@ def get_mouse_state() -> MouseState:
         elif battery == 0.0:
             battery = 0 if charging else None
 
-        dpi_x, _ = mouse.dpi
+        dpi = mouse.dpi
 
         active_stage, stages = mouse.dpi_stages
+
+        dpi_stages = [DPIStage(x=dpi_x, y=dpi_y) for dpi_x, dpi_y in stages]
 
         idle_minutes = mouse.get_idle_time() // 60
 
@@ -89,9 +93,9 @@ def get_mouse_state() -> MouseState:
         battery=battery,
         charging=charging,
         charging_source=ChargingSource(get_charging_source(mouse)),
-        dpi=dpi_x,
+        dpi=dpi,
         active_stage=active_stage,
-        stages=_convert_dpi_stages(stages),
+        stages=dpi_stages,
         idle_minutes=idle_minutes,
         low_battery_threshold=low_battery_threshold,
     )

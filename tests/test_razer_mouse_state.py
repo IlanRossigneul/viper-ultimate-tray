@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 import razer.mouse_state
-from razer.mouse_state import ChargingSource, get_mouse_state
+from razer.mouse_state import ChargingSource, DPIStage, get_mouse_state
 
 
 def _create_mouse(
@@ -130,10 +130,10 @@ def test_get_mouse_state_builds_complete_wireless_state(monkeypatch) -> None:
         name="Razer Viper Ultimate",
         battery=73.5,
         charging=True,
-        dpi=(1600, 1600),
+        dpi=(1600, 1200),
         dpi_stages=(
             2,
-            [(800, 800), (1600, 1600), (3200, 3200)],
+            [(800, 800), (1600, 1200), (3200, 3200)],
         ),
         idle_seconds=125,
         low_battery_threshold=20,
@@ -163,9 +163,13 @@ def test_get_mouse_state_builds_complete_wireless_state(monkeypatch) -> None:
         battery=73.5,
         charging=True,
         charging_source=ChargingSource.WIRELESS,
-        dpi=1600,
+        dpi=(1600, 1200),
         active_stage=2,
-        stages=[800, 1600, 3200],
+        stages=[
+            DPIStage(800, 800),
+            DPIStage(1600, 1200),
+            DPIStage(3200, 3200),
+        ],
         idle_minutes=2,
         low_battery_threshold=20,
     )
@@ -176,10 +180,13 @@ def test_get_mouse_state_returns_disconnected_when_reading_state_fails(
 ) -> None:
     mouse = _create_mouse()
 
-    def get_dpi():
-        raise RuntimeError("DPI unavailable")
+    class FailingMouse:
+        def __getattr__(self, name: str):
+            if name == "dpi":
+                raise RuntimeError("DPI unavailable")
+            return getattr(mouse, name)
 
-    mouse.dpi = property(get_dpi)
+    mouse = FailingMouse()
 
     monkeypatch.setattr(
         razer.mouse_state,

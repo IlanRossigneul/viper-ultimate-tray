@@ -45,6 +45,8 @@ def test_create_menu_builds_expected_menu_structure() -> None:
     assert widgets.battery_item.text() == ""
     assert widgets.dpi_item.text() == ""
     assert widgets.stage_item.text() == ""
+    assert widgets.dpi_edit_action.text() == "Modifier le DPI courant"
+    assert widgets.dpi_stages_edit_action.text() == "Modifier les Plages DPI"
     assert widgets.idle_item.text() == ""
     assert widgets.low_battery_item.text() == ""
 
@@ -65,11 +67,14 @@ def test_create_menu_builds_expected_menu_structure() -> None:
         widgets.dpi_item,
         widgets.stage_item,
         widgets.menu.actions()[6],
+        widgets.dpi_edit_action,
+        widgets.dpi_stages_edit_action,
+        widgets.menu.actions()[9],
         widgets.idle_item,
         widgets.low_battery_item,
-        widgets.menu.actions()[9],
+        widgets.menu.actions()[12],
         widgets.logs_item,
-        widgets.menu.actions()[11],
+        widgets.menu.actions()[14],
         widgets.polychromatic_action,
         widgets.input_remapper_action,
     ]
@@ -150,3 +155,17 @@ def test_create_menu_launches_input_remapper(monkeypatch) -> None:
     assert calls == [
         (["input-remapper-gtk"], True),
     ]
+
+
+def test_create_menu_builds_dpi_edit_actions() -> None:
+    _get_app()
+
+    widgets = create_menu(
+        MENU_ICON_DIR,
+        MENU_BATTERY_ICON_DIR,
+        MENU_LOG_ICON_DIR,
+        "Razer Viper Ultimate",
+    )
+
+    assert widgets.dpi_edit_action.text() == "Modifier le DPI courant"
+    assert widgets.dpi_stages_edit_action.text() == "Modifier les Plages DPI"

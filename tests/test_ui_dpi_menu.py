@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QApplication, QMenu
 
 from config.paths import MENU_ICON_DIR
+from razer.mouse_state import DPIStage
 from ui.dpi_menu import create_dpi_stage_menu
 
 
@@ -12,7 +13,11 @@ def test_create_dpi_stage_menu_creates_expected_items() -> None:
     _get_app()
 
     menu = QMenu()
-    stages = [800, 1600, 3200]
+    stages = [
+        DPIStage(800, 800),
+        DPIStage(1600, 1600),
+        DPIStage(3200, 3200),
+    ]
     icon_dir = MENU_ICON_DIR
     callbacks = []
 
@@ -25,13 +30,38 @@ def test_create_dpi_stage_menu_creates_expected_items() -> None:
 
     assert len(items) == 3
     assert [item.text() for item in items] == [
-        " 800",
-        "1600",
-        "3200",
+        "             800",
+        "            1600",
+        "            3200",
     ]
 
     assert all(item.isCheckable() for item in items)
     assert menu.actions() == items
+
+
+def test_create_dpi_stage_menu_formats_asymmetric_dpi() -> None:
+    _get_app()
+
+    menu = QMenu()
+
+    items = create_dpi_stage_menu(
+        menu,
+        [
+            DPIStage(400, 400),
+            DPIStage(800, 300),
+            DPIStage(1600, 1600),
+            DPIStage(20000, 19000),
+        ],
+        MENU_ICON_DIR,
+        lambda _: None,
+    )
+
+    assert [item.text() for item in items] == [
+        "             400",
+        "    800 x, 300 y",
+        "            1600",
+        "20000 x, 19000 y",
+    ]
 
 
 def test_create_dpi_stage_menu_assigns_first_and_last_icons() -> None:
@@ -41,7 +71,11 @@ def test_create_dpi_stage_menu_assigns_first_and_last_icons() -> None:
 
     items = create_dpi_stage_menu(
         menu,
-        [800, 1600, 3200],
+        [
+            DPIStage(800, 800),
+            DPIStage(1600, 1600),
+            DPIStage(3200, 3200),
+        ],
         MENU_ICON_DIR,
         lambda _: None,
     )
@@ -59,7 +93,11 @@ def test_create_dpi_stage_menu_calls_callback_with_stage_number() -> None:
 
     items = create_dpi_stage_menu(
         menu,
-        [800, 1600, 3200],
+        [
+            DPIStage(800, 800),
+            DPIStage(1600, 1600),
+            DPIStage(3200, 3200),
+        ],
         MENU_ICON_DIR,
         callbacks.append,
     )
@@ -77,7 +115,11 @@ def test_create_dpi_stage_menu_uses_exclusive_selection() -> None:
 
     items = create_dpi_stage_menu(
         menu,
-        [800, 1600, 3200],
+        [
+            DPIStage(800, 800),
+            DPIStage(1600, 1600),
+            DPIStage(3200, 3200),
+        ],
         MENU_ICON_DIR,
         lambda _: None,
     )
@@ -97,7 +139,7 @@ def test_create_dpi_stage_menu_with_single_stage_uses_slow_icon() -> None:
 
     items = create_dpi_stage_menu(
         menu,
-        [1600],
+        [DPIStage(1600, 1600)],
         MENU_ICON_DIR,
         lambda _: None,
     )

@@ -4,10 +4,16 @@ from pathlib import Path
 from PySide6.QtGui import QAction, QActionGroup, QIcon
 from PySide6.QtWidgets import QMenu
 
+from razer.mouse_state import DPIStage
+
+
+def format_dpi(stage: DPIStage) -> str:
+    return str(stage.x) if stage.x == stage.y else f"{stage.x} x, {stage.y} y"
+
 
 def create_dpi_stage_menu(
     stage_menu: QMenu,
-    stages: list[int],
+    stages: list[DPIStage],
     icon_dir: Path,
     callback: Callable[[int], None],
 ) -> list[QAction]:
@@ -17,7 +23,7 @@ def create_dpi_stage_menu(
     stage_group.setExclusive(True)
 
     for index, stage in enumerate(stages, start=1):
-        item = QAction(f"{stage:>4}", stage_menu)
+        item = QAction(f"{format_dpi(stage):>16}", stage_menu)
 
         if index == 1:
             item.setIcon(QIcon(str(icon_dir / "slow.svg")))
