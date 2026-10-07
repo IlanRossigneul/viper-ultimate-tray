@@ -15,8 +15,7 @@ class ChargingSource(Enum):
 
 @dataclass(slots=True)
 class DPIStage:
-    x: int
-    y: int
+    dpi: int
 
 
 @dataclass(slots=True)
@@ -78,7 +77,7 @@ def get_mouse_state() -> MouseState:
 
         active_stage, stages = mouse.dpi_stages
 
-        dpi_stages = [DPIStage(x=dpi_x, y=dpi_y) for dpi_x, dpi_y in stages]
+        dpi_stages = [DPIStage(dpi=dpi_x) for dpi_x, _ in stages]
 
         idle_minutes = mouse.get_idle_time() // 60
 

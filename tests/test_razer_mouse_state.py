@@ -166,9 +166,9 @@ def test_get_mouse_state_builds_complete_wireless_state(monkeypatch) -> None:
         dpi=(1600, 1200),
         active_stage=2,
         stages=[
-            DPIStage(800, 800),
-            DPIStage(1600, 1200),
-            DPIStage(3200, 3200),
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(3200),
         ],
         idle_minutes=2,
         low_battery_threshold=20,

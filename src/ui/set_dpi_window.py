@@ -1,6 +1,8 @@
 from PySide6.QtCore import QPointF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import (
+    QButtonGroup,
+    QGroupBox,
     QHBoxLayout,
     QPushButton,
     QScrollBar,
@@ -10,6 +12,7 @@ from PySide6.QtWidgets import (
 )
 
 from config.paths import MENU_ICON_DIR, MENU_WINDOW_ICON_DIR
+from razer.mouse_state import DPIStage
 
 MIN_DPI = 100
 MAX_DPI = 20_000
@@ -365,20 +368,26 @@ class DPIContentWidget(QWidget):
 class SetDPIWindow(QWidget):
     """Window used to configure the current mouse DPI."""
 
-    dpi_changed = Signal(int, int)
+    settings_changed = Signal(int, int, list, int)
 
     def __init__(
         self,
         current_dpi: tuple[int, int],
+        stages: list[DPIStage],
+        active_stage: int,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
 
-        self.setWindowTitle("DPI courant")
+        self.setWindowTitle("Modification du DPI")
         self.setWindowIcon(
             QIcon(str(MENU_ICON_DIR / "mouse.svg")),
         )
-        self.setFixedSize(790, 790)
+        self.setFixedSize(790, 900)
+
+        self._stages = stages
+        self._active_stage = active_stage
+        self._updating_from_stage = False
 
         self._original_dpi = current_dpi
 
@@ -421,6 +430,86 @@ class SetDPIWindow(QWidget):
 
         self._create_layout()
 
+    def _create_stages_group(self) -> QGroupBox:
+        """Create the DPI stages group."""
+        group = QGroupBox("Plages DPI")
+
+        group.setStyleSheet(
+            """
+            QPushButton:checked {
+                background: #8000FF00;
+            }
+            """
+        )
+
+        layout = QHBoxLayout(group)
+        layout.setSpacing(AXIS_SPACING)
+
+        self.stage_button_group = QButtonGroup(self)
+        self.stage_button_group.setExclusive(False)
+
+        self.stage_buttons: list[QPushButton] = []
+
+        for stage in self._stages:
+            button = QPushButton(str(stage.dpi))
+            button.setCheckable(True)
+            button.clicked.connect(
+                lambda checked, button=button: self._toggle_stage_button(
+                    button,
+                    checked,
+                )
+            )
+
+            self.stage_button_group.addButton(button)
+            self.stage_buttons.append(button)
+            layout.addWidget(button)
+
+        edit_button = QPushButton("Éditer")
+        layout.addWidget(edit_button)
+
+        return group
+
+    def _toggle_stage_button(
+        self,
+        button: QPushButton,
+        checked: bool,
+    ) -> None:
+        """Allow at most one stage button to be selected, with deselection."""
+        if not checked:
+            return
+
+        for stage_button in self.stage_buttons:
+            if stage_button is not button:
+                stage_button.setChecked(False)
+
+        stage_number = self.stage_buttons.index(button)
+        dpi = self._stages[stage_number].dpi
+
+        self._updating_from_stage = True
+
+        try:
+            self.x_spinbox.setValue(dpi)
+            self.y_spinbox.setValue(dpi)
+        finally:
+            self._updating_from_stage = False
+
+    def _deselect_stage(self) -> None:
+        """Deselect the currently selected DPI stage."""
+        if self._updating_from_stage:
+            return
+
+        for button in self.stage_buttons:
+            if button.isChecked():
+                button.setChecked(False)
+
+    def _selected_stage(self) -> int | None:
+        """Return the selected DPI stage number, if any."""
+        for index, button in enumerate(self.stage_buttons, start=1):
+            if button.isChecked():
+                return index
+
+        return None
+
     @staticmethod
     def _create_spinbox(value: int) -> QSpinBox:
         """Create a DPI spinbox."""
@@ -439,8 +528,13 @@ class SetDPIWindow(QWidget):
         main_layout.setContentsMargins(12, 12, 12, 12)
         main_layout.setSpacing(AXIS_SPACING)
 
-        main_layout.addWidget(self.content, 1)
-        main_layout.addSpacing(AXIS_SPACING * 4)
+        main_layout.addWidget(self._create_stages_group())
+
+        current_dpi_group = QGroupBox("DPI courant")
+        current_dpi_layout = QVBoxLayout(current_dpi_group)
+        current_dpi_layout.addWidget(self.content)
+
+        main_layout.addWidget(current_dpi_group, 1)
 
         buttons_layout = QHBoxLayout()
         buttons_layout.setSpacing(AXIS_SPACING)
@@ -458,6 +552,9 @@ class SetDPIWindow(QWidget):
 
     def _x_scrollbar_changed(self, _value: int) -> None:
         """Handle X DPI scrollbar changes."""
+        if not self._updating_from_stage:
+            self._deselect_stage()
+
         value = self.selector.x_scrollbar.dpi_value()
 
         if self.x_spinbox.value() != value:
@@ -468,6 +565,9 @@ class SetDPIWindow(QWidget):
 
     def _y_scrollbar_changed(self, _value: int) -> None:
         """Handle Y DPI scrollbar changes."""
+        if not self._updating_from_stage:
+            self._deselect_stage()
+
         value = self.selector.y_scrollbar.dpi_value()
 
         if self.y_spinbox.value() != value:
@@ -478,11 +578,17 @@ class SetDPIWindow(QWidget):
 
     def _x_spinbox_changed(self, value: int) -> None:
         """Handle X DPI spinbox changes."""
+        if not self._updating_from_stage:
+            self._deselect_stage()
+
         if self.selector.x_scrollbar.dpi_value() != value:
             self.selector.x_scrollbar.set_dpi_value(value)
 
     def _y_spinbox_changed(self, value: int) -> None:
         """Handle Y DPI spinbox changes."""
+        if not self._updating_from_stage:
+            self._deselect_stage()
+
         if self.selector.y_scrollbar.dpi_value() != value:
             self.selector.y_scrollbar.set_dpi_value(value)
 
@@ -500,11 +606,23 @@ class SetDPIWindow(QWidget):
             self.y_spinbox.setValue(value)
 
     def _save(self) -> None:
-        """Save the selected DPI values."""
+        """Save the selected DPI values and active stage."""
         self._original_dpi = (
             self.x_spinbox.value(),
             self.y_spinbox.value(),
         )
 
-        self.dpi_changed.emit(*self._original_dpi)
+        active_stage = self._selected_stage()
+
+        if active_stage is None:
+            active_stage = self._active_stage
+        else:
+            self._active_stage = active_stage
+
+        self.settings_changed.emit(
+            self._original_dpi[0],
+            self._original_dpi[1],
+            self._stages,
+            active_stage,
+        )
         self.close()

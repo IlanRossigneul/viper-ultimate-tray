@@ -23,8 +23,8 @@ def _connected_state() -> MouseState:
         dpi=(800, 800),
         active_stage=1,
         stages=[
-            DPIStage(x=800, y=800),
-            DPIStage(x=1600, y=1600),
+            DPIStage(800),
+            DPIStage(1600),
         ],
         idle_minutes=5,
         low_battery_threshold=15,
@@ -298,28 +298,6 @@ def test_set_active_stage_logs_error_when_controller_fails() -> None:
 
     application.mouse_controller.set_dpi_stage.assert_called_once_with(2)
     logger_error.assert_called_once_with("Failed to change the DPI stage.")
-
-
-def test_set_dpi_updates_dpi() -> None:
-    application = Application()
-    application.mouse_controller = MagicMock()
-    application.mouse_controller.set_dpi.return_value = True
-
-    application._set_dpi(1600, 3200)
-
-    application.mouse_controller.set_dpi.assert_called_once_with(1600, 3200)
-
-
-def test_set_dpi_logs_error_when_controller_fails() -> None:
-    application = Application()
-    application.mouse_controller = MagicMock()
-    application.mouse_controller.set_dpi.return_value = False
-
-    with patch("app.application.logger.error") as logger_error:
-        application._set_dpi(1600, 3200)
-
-    application.mouse_controller.set_dpi.assert_called_once_with(1600, 3200)
-    logger_error.assert_called_once_with("Failed to change the DPI.")
 
 
 def test_set_idle_time_logs_error_when_controller_fails() -> None:
@@ -709,7 +687,14 @@ def test_open_set_dpi_creates_and_shows_window() -> None:
 
     window = window_class.return_value
 
-    window_class.assert_called_once_with((800, 1600))
+    window_class.assert_called_once_with(
+        (800, 1600),
+        state.stages,
+        state.active_stage,
+    )
+    window.settings_changed.connect.assert_called_once_with(
+        application._set_dpi_settings,
+    )
     window.show.assert_called_once_with()
     window.raise_.assert_called_once_with()
     window.activateWindow.assert_called_once_with()
@@ -1161,3 +1146,101 @@ def test_charge_model_signal_is_handled_in_gui_thread() -> None:
     app.processEvents()
 
     assert called_thread == [app.thread()]
+
+
+def test_set_dpi_settings_does_nothing_without_controller() -> None:
+    application = Application()
+
+    application._set_dpi_settings(
+        1600,
+        1600,
+        [DPIStage(800), DPIStage(1600)],
+        2,
+    )
+
+
+def test_set_dpi_settings_updates_stages_and_current_dpi() -> None:
+    application = Application()
+    application.mouse_controller = MagicMock()
+
+    stages = [
+        DPIStage(800),
+        DPIStage(1600),
+        DPIStage(3200),
+    ]
+
+    application._set_dpi_settings(
+        1600,
+        1600,
+        stages,
+        2,
+    )
+
+    application.mouse_controller.set_dpi_stages.assert_called_once_with(
+        stages,
+        2,
+    )
+    application.mouse_controller.set_dpi.assert_called_once_with(
+        1600,
+        1600,
+    )
+
+
+def test_set_dpi_settings_logs_stage_failure_and_sets_current_dpi(
+    caplog,
+) -> None:
+    application = Application()
+    application.mouse_controller = MagicMock()
+    application.mouse_controller.set_dpi_stages.return_value = False
+
+    stages = [
+        DPIStage(800),
+        DPIStage(1600),
+    ]
+
+    application._set_dpi_settings(
+        1600,
+        1600,
+        stages,
+        1,
+    )
+
+    application.mouse_controller.set_dpi_stages.assert_called_once_with(
+        stages,
+        1,
+    )
+    application.mouse_controller.set_dpi.assert_called_once_with(
+        1600,
+        1600,
+    )
+    assert "Failed to change the DPI stages." in caplog.text
+
+
+def test_set_dpi_settings_logs_current_dpi_failure(
+    caplog,
+) -> None:
+    application = Application()
+    application.mouse_controller = MagicMock()
+    application.mouse_controller.set_dpi.return_value = False
+
+    stages = [
+        DPIStage(800),
+        DPIStage(1600),
+    ]
+
+    application._set_dpi_settings(
+        1600,
+        1600,
+        stages,
+        1,
+    )
+
+    application.mouse_controller.set_dpi_stages.assert_called_once_with(
+        stages,
+        1,
+    )
+    application.mouse_controller.set_dpi.assert_called_once_with(
+        1600,
+        1600,
+    )
+    assert "Failed to change the DPI." in caplog.text

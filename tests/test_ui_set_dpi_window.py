@@ -1,6 +1,7 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
+from razer.mouse_state import DPIStage
 from ui.set_dpi_window import (
     DPI_STEP,
     MAX_DPI,
@@ -54,7 +55,11 @@ def test_dpi_scrollbar_clamps_dpi_value() -> None:
 def test_set_dpi_window_initializes_current_dpi() -> None:
     _get_app()
 
-    window = SetDPIWindow((1600, 3200))
+    window = SetDPIWindow(
+        (1600, 3200),
+        [DPIStage(800), DPIStage(1600), DPIStage(3200)],
+        2,
+    )
 
     assert window.x_spinbox.value() == 1600
     assert window.y_spinbox.value() == 3200
@@ -65,7 +70,11 @@ def test_set_dpi_window_initializes_current_dpi() -> None:
 def test_spinboxes_update_scrollbars() -> None:
     _get_app()
 
-    window = SetDPIWindow((800, 800))
+    window = SetDPIWindow(
+        (800, 800),
+        [DPIStage(800), DPIStage(1600), DPIStage(3200)],
+        2,
+    )
 
     window.x_spinbox.setValue(1600)
     window.y_spinbox.setValue(3200)
@@ -77,7 +86,11 @@ def test_spinboxes_update_scrollbars() -> None:
 def test_scrollbars_update_spinboxes() -> None:
     _get_app()
 
-    window = SetDPIWindow((800, 800))
+    window = SetDPIWindow(
+        (800, 800),
+        [DPIStage(800), DPIStage(1600), DPIStage(3200)],
+        2,
+    )
 
     window.selector.x_scrollbar.set_dpi_value(1600)
     window.selector.y_scrollbar.set_dpi_value(3200)
@@ -89,7 +102,11 @@ def test_scrollbars_update_spinboxes() -> None:
 def test_lock_synchronizes_both_axes() -> None:
     _get_app()
 
-    window = SetDPIWindow((800, 1600))
+    window = SetDPIWindow(
+        (800, 1600),
+        [DPIStage(800), DPIStage(1600), DPIStage(3200)],
+        2,
+    )
 
     window.selector.lock_button.setChecked(True)
 
@@ -105,33 +122,216 @@ def test_lock_synchronizes_both_axes() -> None:
     assert window.selector.y_scrollbar.dpi_value() == 3200
 
 
-def test_save_emits_selected_dpi_and_closes_window() -> None:
+def test_save_emits_dpi_and_preserves_active_stage_when_none_is_selected() -> None:
     _get_app()
 
-    window = SetDPIWindow((800, 800))
+    stages = [
+        DPIStage(800),
+        DPIStage(1600),
+        DPIStage(3200),
+    ]
+    window = SetDPIWindow((800, 800), stages, 2)
     emitted = []
 
-    window.dpi_changed.connect(
-        lambda x, y: emitted.append((x, y)),
+    window.settings_changed.connect(
+        lambda x, y, emitted_stages, active_stage: emitted.append(
+            (x, y, emitted_stages, active_stage)
+        )
     )
 
     window.x_spinbox.setValue(1600)
     window.y_spinbox.setValue(3200)
-
     window._save()
 
-    assert emitted == [(1600, 3200)]
+    assert emitted == [(1600, 3200, stages, 2)]
     assert window.isVisible() is False
 
 
-def test_quit_does_not_emit_dpi_changed() -> None:
+def test_save_emits_selected_stage_and_synchronized_dpi() -> None:
     _get_app()
 
-    window = SetDPIWindow((800, 800))
+    stages = [
+        DPIStage(800),
+        DPIStage(1600),
+        DPIStage(3200),
+    ]
+    window = SetDPIWindow((800, 800), stages, 2)
     emitted = []
 
-    window.dpi_changed.connect(
-        lambda x, y: emitted.append((x, y)),
+    window.settings_changed.connect(
+        lambda x, y, emitted_stages, active_stage: emitted.append(
+            (x, y, emitted_stages, active_stage)
+        )
+    )
+
+    window.stage_buttons[2].click()
+    window._save()
+
+    assert emitted == [(3200, 3200, stages, 3)]
+
+
+def test_stage_buttons_allow_only_one_selection() -> None:
+    _get_app()
+
+    window = SetDPIWindow(
+        (800, 800),
+        [
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(3200),
+        ],
+        2,
+    )
+
+    assert [button.isChecked() for button in window.stage_buttons] == [
+        False,
+        False,
+        False,
+    ]
+
+    window.stage_buttons[0].click()
+
+    assert [button.isChecked() for button in window.stage_buttons] == [
+        True,
+        False,
+        False,
+    ]
+
+    window.stage_buttons[1].click()
+
+    assert [button.isChecked() for button in window.stage_buttons] == [
+        False,
+        True,
+        False,
+    ]
+
+    window.stage_buttons[1].click()
+
+    assert [button.isChecked() for button in window.stage_buttons] == [
+        False,
+        False,
+        False,
+    ]
+
+
+def test_selecting_stage_synchronizes_current_dpi() -> None:
+    _get_app()
+
+    window = SetDPIWindow(
+        (800, 1600),
+        [
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(3200),
+        ],
+        2,
+    )
+
+    window.stage_buttons[2].click()
+
+    assert window.x_spinbox.value() == 3200
+    assert window.y_spinbox.value() == 3200
+    assert window.selector.x_scrollbar.dpi_value() == 3200
+    assert window.selector.y_scrollbar.dpi_value() == 3200
+    assert window.stage_buttons[2].isChecked()
+
+
+def test_changing_spinbox_deselects_selected_stage() -> None:
+    _get_app()
+
+    window = SetDPIWindow(
+        (800, 800),
+        [
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(3200),
+        ],
+        2,
+    )
+
+    window.stage_buttons[0].click()
+    assert window.stage_buttons[0].isChecked()
+
+    window.x_spinbox.setValue(1000)
+
+    assert not window.stage_buttons[0].isChecked()
+
+
+def test_changing_y_spinbox_deselects_selected_stage() -> None:
+    _get_app()
+
+    window = SetDPIWindow(
+        (800, 800),
+        [
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(3200),
+        ],
+        2,
+    )
+
+    window.stage_buttons[0].click()
+    assert window.stage_buttons[0].isChecked()
+
+    window.y_spinbox.setValue(1000)
+
+    assert not window.stage_buttons[0].isChecked()
+
+
+def test_changing_x_scrollbar_deselects_selected_stage() -> None:
+    _get_app()
+
+    window = SetDPIWindow(
+        (800, 800),
+        [
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(3200),
+        ],
+        2,
+    )
+
+    window.stage_buttons[0].click()
+    assert window.stage_buttons[0].isChecked()
+
+    window.selector.x_scrollbar.set_dpi_value(1000)
+
+    assert not window.stage_buttons[0].isChecked()
+
+
+def test_changing_y_scrollbar_deselects_selected_stage() -> None:
+    _get_app()
+
+    window = SetDPIWindow(
+        (800, 800),
+        [
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(3200),
+        ],
+        2,
+    )
+
+    window.stage_buttons[0].click()
+    assert window.stage_buttons[0].isChecked()
+
+    window.selector.y_scrollbar.set_dpi_value(1000)
+
+    assert not window.stage_buttons[0].isChecked()
+
+
+def test_quit_does_not_emit_settings_changed() -> None:
+    _get_app()
+
+    window = SetDPIWindow(
+        (800, 800),
+        [DPIStage(800), DPIStage(1600), DPIStage(3200)],
+        2,
+    )
+    emitted = []
+
+    window.settings_changed.connect(
+        lambda x, y, stages, active_stage: emitted.append((x, y, stages, active_stage))
     )
 
     window.close()
@@ -139,14 +339,18 @@ def test_quit_does_not_emit_dpi_changed() -> None:
     assert emitted == []
 
 
-def test_window_close_does_not_emit_dpi_changed() -> None:
+def test_window_close_does_not_emit_settings_changed() -> None:
     _get_app()
 
-    window = SetDPIWindow((800, 800))
+    window = SetDPIWindow(
+        (800, 800),
+        [DPIStage(800), DPIStage(1600), DPIStage(3200)],
+        2,
+    )
     emitted = []
 
-    window.dpi_changed.connect(
-        lambda x, y: emitted.append((x, y)),
+    window.settings_changed.connect(
+        lambda x, y, stages, active_stage: emitted.append((x, y, stages, active_stage))
     )
 
     window.show()

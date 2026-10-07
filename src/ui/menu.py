@@ -15,7 +15,6 @@ class MenuWidgets:
     dpi_item: QAction
     stage_item: QAction
     dpi_edit_action: QAction
-    dpi_stages_edit_action: QAction
     idle_item: QAction
     low_battery_item: QAction
 
@@ -69,12 +68,7 @@ def create_menu(
 
     dpi_edit_action = create_menu_item(
         menu_icon_dir / "dpi.svg",
-        "Modifier le DPI courant",
-    )
-
-    dpi_stages_edit_action = create_menu_item(
-        menu_icon_dir / "stages-dpi.svg",
-        "Modifier les Plages DPI",
+        "Modifier le DPI",
     )
 
     idle_item = create_menu_item(menu_icon_dir / "hibernation.svg")
@@ -147,7 +141,6 @@ def create_menu(
     add_separator(menu)
 
     menu.addAction(dpi_edit_action)
-    menu.addAction(dpi_stages_edit_action)
 
     add_separator(menu)
 
@@ -173,7 +166,6 @@ def create_menu(
         dpi_item=dpi_item,
         stage_item=stage_item,
         dpi_edit_action=dpi_edit_action,
-        dpi_stages_edit_action=dpi_stages_edit_action,
         idle_item=idle_item,
         low_battery_item=low_battery_item,
         stage_menu=stage_menu,

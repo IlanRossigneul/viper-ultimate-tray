@@ -2,6 +2,7 @@ from types import SimpleNamespace
 
 import razer.mouse_controller
 from razer.mouse_controller import MouseController
+from razer.mouse_state import DPIStage
 
 
 def _create_controller(monkeypatch, mouse=None) -> MouseController:
@@ -162,3 +163,60 @@ def test_set_dpi_returns_false_when_setting_dpi_fails(monkeypatch) -> None:
     controller = _create_controller(monkeypatch, mouse)
 
     assert controller.set_dpi(1600, 3200) is False
+
+
+def test_set_dpi_stages_returns_false_when_mouse_is_not_found(
+    monkeypatch,
+) -> None:
+    controller = _create_controller(monkeypatch)
+
+    assert (
+        controller.set_dpi_stages(
+            [DPIStage(800), DPIStage(1600)],
+            1,
+        )
+        is False
+    )
+
+
+def test_set_dpi_stages_updates_active_stage_and_stages(
+    monkeypatch,
+) -> None:
+    mouse = SimpleNamespace()
+    controller = _create_controller(monkeypatch, mouse)
+
+    stages = [
+        DPIStage(800),
+        DPIStage(1600),
+        DPIStage(3200),
+    ]
+
+    assert controller.set_dpi_stages(stages, 2) is True
+    assert mouse.dpi_stages == (
+        2,
+        [(800, 800), (1600, 1600), (3200, 3200)],
+    )
+
+
+def test_set_dpi_stages_returns_false_when_setting_stages_fails(
+    monkeypatch,
+) -> None:
+    class FailingMouse:
+        @property
+        def dpi_stages(self):
+            return (1, [(800, 800), (1600, 1600)])
+
+        @dpi_stages.setter
+        def dpi_stages(self, value):
+            raise RuntimeError("DPI stages unavailable")
+
+    mouse = FailingMouse()
+    controller = _create_controller(monkeypatch, mouse)
+
+    assert (
+        controller.set_dpi_stages(
+            [DPIStage(800), DPIStage(1600)],
+            1,
+        )
+        is False
+    )

@@ -22,7 +22,7 @@ from config.paths import (
 from notifications.mouse_notifications import MouseNotificationManager
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
-from razer.mouse_state import MouseState, get_mouse_state
+from razer.mouse_state import DPIStage, MouseState, get_mouse_state
 from ui.battery_logger_window import BatteryLoggerWindow
 from ui.charge_data_window import ChargeDataWindow
 from ui.dpi_menu import create_dpi_stage_menu
@@ -382,27 +382,42 @@ class Application(QObject):
 
     def _open_set_dpi(self) -> None:
         state = get_mouse_state()
-
-        if not state.connected or state.dpi is None:
+        if not state.connected or state.dpi is None or state.active_stage is None:
             return
 
         if self.set_dpi_window is None:
-            self.set_dpi_window = SetDPIWindow(state.dpi)
-
-            self.set_dpi_window.dpi_changed.connect(
-                self._set_dpi,
+            self.set_dpi_window = SetDPIWindow(
+                state.dpi,
+                state.stages,
+                state.active_stage,
+            )
+            self.set_dpi_window.settings_changed.connect(
+                self._set_dpi_settings,
             )
         else:
             self.set_dpi_window.x_spinbox.setValue(state.dpi[0])
             self.set_dpi_window.y_spinbox.setValue(state.dpi[1])
+            self.set_dpi_window._active_stage = state.active_stage
 
         self.set_dpi_window.show()
         self.set_dpi_window.raise_()
         self.set_dpi_window.activateWindow()
 
-    def _set_dpi(self, x: int, y: int) -> None:
+    def _set_dpi_settings(
+        self,
+        x: int,
+        y: int,
+        stages: list[DPIStage],
+        active_stage: int,
+    ) -> None:
         if self.mouse_controller is None:
             return
+
+        if not self.mouse_controller.set_dpi_stages(
+            stages,
+            active_stage,
+        ):
+            logger.error("Failed to change the DPI stages.")
 
         if not self.mouse_controller.set_dpi(x, y):
             logger.error("Failed to change the DPI.")

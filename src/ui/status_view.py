@@ -75,7 +75,7 @@ class StatusView:
 
     @staticmethod
     def format_dpi_stage(stage: DPIStage) -> str:
-        return StatusView.format_dpi((stage.x, stage.y))
+        return str(stage.dpi)
 
     def show_disconnected(self) -> None:
         self.indicator.setIconByPixmap(QPixmap(str(self.menu_icon_dir / "mouse.svg")))
@@ -185,7 +185,7 @@ class StatusView:
         for index, stage in enumerate(state.stages, start=1):
             item = self.stage_items[index - 1]
 
-            item.setText(f"{self.format_dpi_stage(stage):>16}")
+            item.setText(f"{self.format_dpi_stage(stage):>5}")
             item.setChecked(index == state.active_stage)
 
         self.idle_item.setText(f"Hibernation : {state.idle_minutes} min")
