@@ -712,8 +712,11 @@ def test_open_set_dpi_reuses_existing_window_and_refreshes_dpi() -> None:
     with patch("app.application.get_mouse_state", return_value=state):
         application._open_set_dpi()
 
-    application.set_dpi_window.x_spinbox.setValue.assert_called_once_with(1600)
-    application.set_dpi_window.y_spinbox.setValue.assert_called_once_with(3200)
+    application.set_dpi_window.set_state.assert_called_once_with(
+        (1600, 3200),
+        state.stages,
+        state.active_stage,
+    )
 
     application.set_dpi_window.show.assert_called_once_with()
     application.set_dpi_window.raise_.assert_called_once_with()
@@ -1042,12 +1045,24 @@ def test_handle_connected_updates_battery_logger_menu() -> None:
 
     state = _connected_state()
 
-    with patch.object(
-        application,
-        "_update_battery_logger_menu",
-    ) as update_menu:
+    with (
+        patch(
+            "app.application.update_dpi_stage_menu",
+        ) as update_stage_menu,
+        patch.object(
+            application,
+            "_update_battery_logger_menu",
+        ) as update_menu,
+    ):
         application._handle_connected(state)
 
+    update_stage_menu.assert_called_once_with(
+        application.menu_widgets.stage_menu,
+        application.menu_widgets.stage_items,
+        state.stages,
+        application.menu_icon_dir,
+        application._set_active_stage,
+    )
     update_menu.assert_called_once_with()
 
 

@@ -2,7 +2,7 @@ from PySide6.QtWidgets import QApplication, QMenu
 
 from config.paths import MENU_ICON_DIR
 from razer.mouse_state import DPIStage
-from ui.dpi_menu import create_dpi_stage_menu
+from ui.dpi_menu import create_dpi_stage_menu, update_dpi_stage_menu
 
 
 def _get_app() -> QApplication:
@@ -121,3 +121,47 @@ def test_create_dpi_stage_menu_with_single_stage_uses_slow_icon() -> None:
 
     assert len(items) == 1
     assert items[0].icon().isNull() is False
+
+
+def test_update_dpi_stage_menu_rebuilds_items_to_match_stages() -> None:
+    _get_app()
+
+    menu = QMenu()
+    stage_items = []
+
+    stage_items.extend(
+        create_dpi_stage_menu(
+            menu,
+            [
+                DPIStage(400),
+                DPIStage(800),
+                DPIStage(1600),
+                DPIStage(2400),
+                DPIStage(3200),
+            ],
+            MENU_ICON_DIR,
+            lambda _: None,
+        )
+    )
+
+    update_dpi_stage_menu(
+        menu,
+        stage_items,
+        [
+            DPIStage(400),
+            DPIStage(800),
+            DPIStage(1600),
+            DPIStage(2400),
+        ],
+        MENU_ICON_DIR,
+        lambda _: None,
+    )
+
+    assert len(stage_items) == 4
+    assert menu.actions() == stage_items
+    assert [item.text() for item in stage_items] == [
+        "  400",
+        "  800",
+        " 1600",
+        " 2400",
+    ]

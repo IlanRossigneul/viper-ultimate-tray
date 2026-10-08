@@ -67,7 +67,7 @@ def create_menu(
     stage_item = create_menu_item(menu_icon_dir / "stages-dpi.svg")
 
     dpi_edit_action = create_menu_item(
-        menu_icon_dir / "dpi.svg",
+        menu_icon_dir / "set-dpi.svg",
         "Modifier le DPI",
     )
 

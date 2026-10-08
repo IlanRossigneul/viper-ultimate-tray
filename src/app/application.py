@@ -25,7 +25,10 @@ from razer.mouse_poller import MousePoller
 from razer.mouse_state import DPIStage, MouseState, get_mouse_state
 from ui.battery_logger_window import BatteryLoggerWindow
 from ui.charge_data_window import ChargeDataWindow
-from ui.dpi_menu import create_dpi_stage_menu
+from ui.dpi_menu import (
+    create_dpi_stage_menu,
+    update_dpi_stage_menu,
+)
 from ui.idle_menu import create_idle_time_menu
 from ui.low_battery_menu import create_low_battery_menu
 from ui.menu import MenuWidgets, create_menu
@@ -395,9 +398,11 @@ class Application(QObject):
                 self._set_dpi_settings,
             )
         else:
-            self.set_dpi_window.x_spinbox.setValue(state.dpi[0])
-            self.set_dpi_window.y_spinbox.setValue(state.dpi[1])
-            self.set_dpi_window._active_stage = state.active_stage
+            self.set_dpi_window.set_state(
+                state.dpi,
+                state.stages,
+                state.active_stage,
+            )
 
         self.set_dpi_window.show()
         self.set_dpi_window.raise_()
@@ -441,6 +446,15 @@ class Application(QObject):
             self.notification_manager.reset()
 
     def _handle_connected(self, state: MouseState) -> None:
+        if self.menu_widgets is not None:
+            update_dpi_stage_menu(
+                self.menu_widgets.stage_menu,
+                self.menu_widgets.stage_items,
+                state.stages,
+                self.menu_icon_dir,
+                self._set_active_stage,
+            )
+
         self.status_view.show_connected(state)
 
         if self.notification_manager is not None:

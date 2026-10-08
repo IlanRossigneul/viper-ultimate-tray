@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from config.paths import MENU_ICON_DIR, MENU_WINDOW_ICON_DIR
 from razer.mouse_state import DPIStage
+from ui.set_dpi_stages_window import SetDPIStagesWindow
 
 MIN_DPI = 100
 MAX_DPI = 20_000
@@ -385,23 +386,17 @@ class SetDPIWindow(QWidget):
         )
         self.setFixedSize(790, 900)
 
-        self._stages = stages
+        self._stages: list[DPIStage] = []
         self._active_stage = active_stage
         self._updating_from_stage = False
+        self.set_dpi_stages_window: SetDPIStagesWindow | None = None
 
         self._original_dpi = current_dpi
 
         self.selector = DPISelectorWidget(self)
 
-        self.x_spinbox = self._create_spinbox(
-            current_dpi[0],
-        )
-        self.y_spinbox = self._create_spinbox(
-            current_dpi[1],
-        )
-
-        self.selector.x_scrollbar.set_dpi_value(current_dpi[0])
-        self.selector.y_scrollbar.set_dpi_value(current_dpi[1])
+        self.x_spinbox = self._create_spinbox(MIN_DPI)
+        self.y_spinbox = self._create_spinbox(MIN_DPI)
 
         self.content = DPIContentWidget(
             self.selector,
@@ -430,6 +425,29 @@ class SetDPIWindow(QWidget):
 
         self._create_layout()
 
+        self.set_state(current_dpi, stages, active_stage)
+
+    def set_state(
+        self,
+        current_dpi: tuple[int, int],
+        stages: list[DPIStage],
+        active_stage: int,
+    ) -> None:
+        """Reset the window to the current mouse state."""
+        self._stages = [DPIStage(stage.dpi) for stage in stages]
+        self._active_stage = active_stage
+        self._original_dpi = current_dpi
+
+        self.x_spinbox.setValue(current_dpi[0])
+        self.y_spinbox.setValue(current_dpi[1])
+
+        self.selector.x_scrollbar.set_dpi_value(current_dpi[0])
+        self.selector.y_scrollbar.set_dpi_value(current_dpi[1])
+
+        self._deselect_stage()
+        self._rebuild_stage_buttons()
+        self._select_stage_matching_dpi()
+
     def _create_stages_group(self) -> QGroupBox:
         """Create the DPI stages group."""
         group = QGroupBox("Plages DPI")
@@ -442,13 +460,38 @@ class SetDPIWindow(QWidget):
             """
         )
 
-        layout = QHBoxLayout(group)
-        layout.setSpacing(AXIS_SPACING)
+        stages_widget = QWidget()
+        self._stages_layout = QHBoxLayout(stages_widget)
+        self._stages_layout.setContentsMargins(0, 0, 0, 0)
+        self._stages_layout.setSpacing(AXIS_SPACING)
 
         self.stage_button_group = QButtonGroup(self)
         self.stage_button_group.setExclusive(False)
 
         self.stage_buttons: list[QPushButton] = []
+
+        self._rebuild_stage_buttons()
+
+        edit_button = QPushButton("Éditer")
+        edit_button.clicked.connect(self._edit_stages)
+        self._stages_layout.addWidget(edit_button)
+
+        group_layout = QVBoxLayout(group)
+        group_layout.addWidget(
+            stages_widget,
+            alignment=Qt.AlignmentFlag.AlignLeft,
+        )
+
+        return group
+
+    def _rebuild_stage_buttons(self) -> None:
+        """Rebuild the DPI stage buttons from the current stage list."""
+        for button in self.stage_buttons:
+            self.stage_button_group.removeButton(button)
+            self._stages_layout.removeWidget(button)
+            button.deleteLater()
+
+        self.stage_buttons.clear()
 
         for stage in self._stages:
             button = QPushButton(str(stage.dpi))
@@ -462,12 +505,45 @@ class SetDPIWindow(QWidget):
 
             self.stage_button_group.addButton(button)
             self.stage_buttons.append(button)
-            layout.addWidget(button)
+            self._stages_layout.insertWidget(
+                len(self.stage_buttons) - 1,
+                button,
+            )
 
-        edit_button = QPushButton("Éditer")
-        layout.addWidget(edit_button)
+    def _edit_stages(self) -> None:
+        """Open the DPI stages editor."""
+        if self.set_dpi_stages_window is None:
+            self.set_dpi_stages_window = SetDPIStagesWindow(self._stages)
+            self.set_dpi_stages_window.settings_changed.connect(
+                self._stages_changed,
+            )
+        else:
+            self.set_dpi_stages_window.set_stages(self._stages)
 
-        return group
+        self.set_dpi_stages_window.show()
+        self.set_dpi_stages_window.raise_()
+        self.set_dpi_stages_window.activateWindow()
+
+    def _stages_changed(self, stages: list[DPIStage]) -> None:
+        """Update the local DPI stage configuration."""
+        self._stages = stages
+
+        self._active_stage = min(self._active_stage, len(self._stages))
+
+        self._rebuild_stage_buttons()
+        self._select_stage_matching_dpi()
+
+    def _select_stage_matching_dpi(self) -> None:
+        """Select the stage matching the current DPI, if any."""
+        current_dpi = (
+            self.x_spinbox.value(),
+            self.y_spinbox.value(),
+        )
+
+        for stage_number, stage in enumerate(self._stages):
+            if current_dpi == (stage.dpi, stage.dpi):
+                self.stage_buttons[stage_number].setChecked(True)
+                break
 
     def _toggle_stage_button(
         self,
@@ -540,7 +616,7 @@ class SetDPIWindow(QWidget):
         buttons_layout.setSpacing(AXIS_SPACING)
 
         save_button = QPushButton("Enregistrer")
-        quit_button = QPushButton("Quitter")
+        quit_button = QPushButton("Annuler")
 
         save_button.clicked.connect(self._save)
         quit_button.clicked.connect(self.close)

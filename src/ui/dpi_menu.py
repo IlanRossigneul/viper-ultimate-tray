@@ -7,13 +7,18 @@ from PySide6.QtWidgets import QMenu
 from razer.mouse_state import DPIStage
 
 
-def create_dpi_stage_menu(
+def update_dpi_stage_menu(
     stage_menu: QMenu,
+    stage_items: list[QAction],
     stages: list[DPIStage],
     icon_dir: Path,
     callback: Callable[[int], None],
-) -> list[QAction]:
-    stage_items: list[QAction] = []
+) -> None:
+    """Update the DPI stage menu to match the current stages."""
+    for item in stage_items:
+        stage_menu.removeAction(item)
+
+    stage_items.clear()
 
     stage_group = QActionGroup(stage_menu)
     stage_group.setExclusive(True)
@@ -35,5 +40,23 @@ def create_dpi_stage_menu(
         stage_group.addAction(item)
         stage_menu.addAction(item)
         stage_items.append(item)
+
+
+def create_dpi_stage_menu(
+    stage_menu: QMenu,
+    stages: list[DPIStage],
+    icon_dir: Path,
+    callback: Callable[[int], None],
+) -> list[QAction]:
+    """Create the DPI stage menu."""
+    stage_items: list[QAction] = []
+
+    update_dpi_stage_menu(
+        stage_menu,
+        stage_items,
+        stages,
+        icon_dir,
+        callback,
+    )
 
     return stage_items

@@ -8,11 +8,6 @@
 * Keep connection, battery, charging, DPI, hibernation, and low-power state updates responsive.
 * Measure the impact of the new polling strategy before and after the rework.
 
-## DPI
-
-* Add support for configuring arbitrary DPI values outside the existing DPI Stages.
-* Add support for configuring the mouse DPI Stages directly.
-
 ## OpenRazer
 
 * Add an interface for configuring OpenRazer settings.
