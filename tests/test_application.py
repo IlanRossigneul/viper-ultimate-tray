@@ -390,6 +390,7 @@ def test_create_status_view_passes_menu_and_charge_model_dependencies() -> None:
         name_item=widgets.name_item,
         battery_item=widgets.battery_item,
         dpi_item=widgets.dpi_item,
+        dpi_edit_action=widgets.dpi_edit_action,
         stage_item=widgets.stage_item,
         idle_item=widgets.idle_item,
         idle_items=widgets.idle_items,

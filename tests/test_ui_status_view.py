@@ -32,6 +32,7 @@ def _create_status_view() -> tuple[StatusView, FakeIndicator]:
     name_item = _create_action()
     battery_item = _create_action()
     dpi_item = _create_action()
+    dpi_edit_action = _create_action()
     stage_item = _create_action()
     idle_item = _create_action()
     low_battery_item = _create_action()
@@ -72,6 +73,7 @@ def _create_status_view() -> tuple[StatusView, FakeIndicator]:
         name_item=name_item,
         battery_item=battery_item,
         dpi_item=dpi_item,
+        dpi_edit_action=dpi_edit_action,
         stage_item=stage_item,
         idle_item=idle_item,
         low_battery_item=low_battery_item,
@@ -127,6 +129,7 @@ def test_show_disconnected_updates_status_and_disables_actions() -> None:
 
     assert not view.battery_item.isEnabled()
     assert not view.dpi_item.isEnabled()
+    assert not view.dpi_edit_action.isEnabled()
     assert not view.stage_item.isEnabled()
     assert not view.idle_item.isEnabled()
     assert not view.low_battery_item.isEnabled()
@@ -171,6 +174,7 @@ def test_show_connected_updates_status_from_mouse_state() -> None:
 
     assert view.battery_item.isEnabled()
     assert view.dpi_item.isEnabled()
+    assert view.dpi_edit_action.isEnabled()
     assert view.stage_item.isEnabled()
     assert view.idle_item.isEnabled()
     assert view.low_battery_item.isEnabled()

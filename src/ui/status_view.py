@@ -22,6 +22,7 @@ class StatusView:
         name_item: QAction,
         battery_item: QAction,
         dpi_item: QAction,
+        dpi_edit_action: QAction,
         stage_item: QAction,
         idle_item: QAction,
         low_battery_item: QAction,
@@ -40,6 +41,7 @@ class StatusView:
         self.name_item = name_item
         self.battery_item = battery_item
         self.dpi_item = dpi_item
+        self.dpi_edit_action = dpi_edit_action
         self.stage_item = stage_item
         self.idle_item = idle_item
         self.low_battery_item = low_battery_item
@@ -95,6 +97,7 @@ class StatusView:
         for item in [
             self.battery_item,
             self.dpi_item,
+            self.dpi_edit_action,
             self.stage_item,
             self.idle_item,
             self.low_battery_item,
@@ -137,6 +140,7 @@ class StatusView:
         for item in [
             self.battery_item,
             self.dpi_item,
+            self.dpi_edit_action,
             self.stage_item,
             self.idle_item,
             self.low_battery_item,

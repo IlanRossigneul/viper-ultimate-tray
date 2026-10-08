@@ -51,7 +51,7 @@ It supports both **Wayland and X11** sessions and is designed to handle wireless
 ## Features
 
 - **Mouse status**: Monitor the mouse battery level, charging state, connection mode, and estimated charging time directly from the tray menu;
-- **DPI**: Select the mouse DPI from the default DPI stages configured on the mouse;
+- **DPI**: Select the active DPI stage, edit the current DPI, and configure the DPI stages directly from the application;
 - **Hibernation**: Configure the mouse hibernation timeout to control its power consumption while idle;
 - **Low-power mode**: Configure the battery threshold at which the mouse enters low-power mode;
 - **Notifications**: Receive notifications for low-battery thresholds, charging completion, and relevant connection or logging events;
@@ -130,6 +130,32 @@ Viper Ultimate Tray allows the active DPI stage to be selected directly from the
 Changing the selected stage updates the active DPI stage on the mouse. The corresponding DPI value is applied immediately, and the mouse's physical DPI indicator LED reflects the active stage.
 
 The DPI stage remains synchronized with the mouse in both directions. Selecting a stage in the application changes the mouse DPI and its physical indicator, while changing the DPI stage using the physical DPI button on the mouse updates the active stage displayed in the tray menu.
+
+The **Modifier le DPI** action opens a dedicated window for editing the current DPI and the DPI stage configuration.
+
+![Viper Ultimate Tray DPI stage selected](docs/screenshots/set-dpi/dpi-stage-selected.png)
+
+The **DPI courant** section displays the current X and Y DPI values. The two axes can be adjusted independently or linked together using the lock button. Changing the current DPI manually deselects any selected DPI stage, since the current DPI no longer corresponds to the configured value of that stage.
+
+![Viper Ultimate Tray current DPI changed](docs/screenshots/set-dpi/current-dpi-changed.png)
+
+The **Plages DPI** section displays the DPI stages configured on the mouse. Selecting a stage in this section temporarily synchronizes the current DPI values with that stage and marks it as the selected stage. The stage selection is only an editing state in this window. It becomes the active DPI stage on the mouse when the changes are saved.
+
+The **Éditer** button opens the DPI stage editor, where stages can be added or removed and their DPI values can be changed.
+
+![Viper Ultimate Tray DPI stage editor](docs/screenshots/set-dpi/editing-dpi-stages-unchanged.png)
+
+The stage editor works on a local copy of the configuration. Changes can therefore be reviewed before they are applied to the mouse.
+
+![Viper Ultimate Tray DPI stage editor with a stage removed](docs/screenshots/set-dpi/removed-last-stage-editing.png)
+
+After returning to the main DPI window, the updated stage configuration is displayed while the current stage selection is preserved when possible.
+
+![Viper Ultimate Tray edited DPI settings](docs/screenshots/set-dpi/set-dpi-edited.png)
+
+Changes made in the DPI editor are applied to the mouse when **Enregistrer** is pressed. **Annuler** discards the changes made in the editor.
+
+The active DPI stage, the configured DPI stages, and the current DPI are handled independently. The current DPI can therefore differ from the DPI value configured for the active stage, for example when the current X and Y DPI have been manually changed.
 
 ### Hibernation
 
@@ -303,7 +329,7 @@ This separation keeps the graphical interface responsive while allowing hardware
 
 Viper Ultimate Tray is organized around a central `Application` object that coordinates mouse monitoring, device control, battery logging, charge-data analysis, notifications, and the KDE Plasma interface.
 
-![Architecture](docs/architecture-viper-ultimate-tray.svg)
+![Architecture](docs/architecture-viper-ultimate-tray-v1.2.0.svg)
 
 `MousePoller` continuously retrieves the complete mouse state through OpenRazer and provides it to the application. `MouseController` handles changes to the mouse configuration, while `StatusView` updates the tray indicator and menu from the current state.
 
