@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from PySide6.QtCore import QTimer, Signal
 from PySide6.QtGui import QIcon
@@ -181,7 +181,7 @@ class BatteryLoggerWindow(QDialog):
     def _update_logging_status(self) -> None:
         """Update the logging duration display."""
         if self._logging_started_at is not None:
-            duration = datetime.now(timezone.utc) - self._logging_started_at
+            duration = datetime.now(UTC) - self._logging_started_at
 
             self.logging_status.setText(
                 f"En cours de journalisation depuis : {self._format_duration(duration)}"

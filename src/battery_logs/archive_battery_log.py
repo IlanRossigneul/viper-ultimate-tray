@@ -22,7 +22,7 @@ class BatteryLogArchiver:
         archive_directory = (
             self.log_dir
             / self.ARCHIVE_DIRECTORY
-            / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")  # noqa: DTZ005
+            / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         )
 
         archive_directory.mkdir(parents=True, exist_ok=True)

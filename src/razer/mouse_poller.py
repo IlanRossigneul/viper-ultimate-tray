@@ -4,7 +4,7 @@ from threading import Event, Thread
 
 from PySide6.QtCore import QObject, Signal
 
-from razer.mouse_state import MouseState, get_mouse_state
+from razer.mouse_state import MousePollingSession, MouseState, get_mouse_state
 
 logger = logging.getLogger(__name__)
 
@@ -16,21 +16,23 @@ class MousePoller(QObject):
         self,
         on_connected: Callable[[MouseState], None],
         on_disconnected: Callable[[], None],
+        session: MousePollingSession | None = None,
     ) -> None:
         super().__init__()
 
         self.on_connected = on_connected
         self.on_disconnected = on_disconnected
+        self.session = session
 
         self.connected = True
 
         self._stop_event = Event()
         self._thread: Thread | None = None
-        self._interval_seconds = 2.0
+        self._interval_seconds = 1.0
 
         self.state_ready.connect(self._handle_state)
 
-    def start(self, interval: int = 2000) -> None:
+    def start(self, interval: int = 1000) -> None:
         if self._thread is not None and self._thread.is_alive():
             return
 
@@ -62,7 +64,11 @@ class MousePoller(QObject):
 
     def _poll_once(self) -> None:
         try:
-            state = get_mouse_state()
+            state = (
+                self.session.get_state()
+                if self.session is not None
+                else get_mouse_state()
+            )
         except Exception:
             logger.exception("Failed to poll mouse state.")
             state = MouseState(

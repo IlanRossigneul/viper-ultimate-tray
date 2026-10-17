@@ -42,6 +42,7 @@ def test_set_dpi_stage_updates_active_stage_and_preserves_stages(
         3,
         [(800, 800), (1600, 1600), (3200, 3200)],
     )
+    assert mouse.dpi == (3200, 3200)
 
 
 def test_set_dpi_stage_returns_false_when_setting_stage_fails(monkeypatch) -> None:

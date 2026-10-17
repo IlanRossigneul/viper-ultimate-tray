@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from PySide6.QtWidgets import QApplication
@@ -32,7 +32,7 @@ def test_set_logging_state() -> None:
 
     window = BatteryLoggerWindow()
 
-    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
 
     with patch("ui.battery_logger_window.datetime") as datetime_mock:
         datetime_mock.now.return_value = datetime(
@@ -42,7 +42,7 @@ def test_set_logging_state() -> None:
             12,
             17,
             32,
-            tzinfo=timezone.utc,
+            tzinfo=UTC,
         )
 
         window.set_logging_state(started_at)
@@ -59,7 +59,7 @@ def test_set_idle_state() -> None:
 
     window = BatteryLoggerWindow()
 
-    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
     last_duration = timedelta(minutes=17, seconds=32)
 
     window.set_logging_state(started_at)
@@ -282,7 +282,7 @@ def test_logging_duration_timer_follows_logging_state() -> None:
     _get_app()
 
     window = BatteryLoggerWindow()
-    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=timezone.utc)
+    started_at = datetime(2026, 9, 28, 12, 0, tzinfo=UTC)
 
     assert not window._duration_timer.isActive()
 
@@ -306,7 +306,7 @@ def test_display_session_change_preserves_logging_state() -> None:
         28,
         12,
         0,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     window.set_logging_state(started_at)

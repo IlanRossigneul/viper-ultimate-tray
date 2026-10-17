@@ -1,6 +1,6 @@
 import argparse
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from KStatusNotifierItem import KStatusNotifierItem
@@ -22,7 +22,7 @@ from config.paths import (
 from notifications.mouse_notifications import MouseNotificationManager
 from razer.mouse_controller import MouseController
 from razer.mouse_poller import MousePoller
-from razer.mouse_state import DPIStage, MouseState, get_mouse_state
+from razer.mouse_state import DPIStage, MousePollingSession, MouseState, get_mouse_state
 from ui.battery_logger_window import BatteryLoggerWindow
 from ui.charge_data_window import ChargeDataWindow
 from ui.dpi_menu import (
@@ -62,6 +62,7 @@ class Application(QObject):
         super().__init__()
         self.indicator: KStatusNotifierItem | None = None
 
+        self.mouse_session: MousePollingSession | None = None
         self.mouse_controller: MouseController | None = None
         self.status_view: StatusView | None = None
         self.poller: MousePoller | None = None
@@ -73,6 +74,8 @@ class Application(QObject):
         self.battery_logger_started_at: datetime | None = None
         self.battery_logger_last_duration: timedelta | None = None
         self.notification_manager: MouseNotificationManager | None = None
+        self._last_dpi_stage: int | None = None
+        self._last_connection_generation: int | None = None
 
         self._battery_logger_started.connect(
             self._handle_battery_logger_started,
@@ -250,7 +253,7 @@ class Application(QObject):
         mode: str,
         interval_seconds: int,
     ) -> None:
-        self.battery_logger_started_at = datetime.now(timezone.utc)
+        self.battery_logger_started_at = datetime.now(UTC)
         self.battery_logger_last_duration = None
 
         logger.info("Battery logger started.")
@@ -290,7 +293,7 @@ class Application(QObject):
 
     @Slot()
     def _handle_battery_logger_finished(self) -> None:
-        stop_time = datetime.now(timezone.utc)
+        stop_time = datetime.now(UTC)
 
         if self.battery_logger_started_at is not None:
             self.battery_logger_last_duration = (
@@ -332,7 +335,7 @@ class Application(QObject):
             self.menu_widgets.logs_item.setText("Journalisation")
             return
 
-        elapsed = datetime.now(timezone.utc) - self.battery_logger_started_at
+        elapsed = datetime.now(UTC) - self.battery_logger_started_at
         total_seconds = int(elapsed.total_seconds())
 
         hours, remainder = divmod(total_seconds, 3600)
@@ -385,7 +388,11 @@ class Application(QObject):
             )
 
     def _open_set_dpi(self) -> None:
-        state = get_mouse_state()
+        state = (
+            self.mouse_session.get_cached_state()
+            if self.mouse_session is not None
+            else get_mouse_state()
+        )
         if not state.connected or state.dpi is None or state.active_stage is None:
             return
 
@@ -429,8 +436,16 @@ class Application(QObject):
             logger.error("Failed to change the DPI.")
 
     def _set_active_stage(self, stage_number: int) -> None:
+        if self.mouse_controller is None:
+            return
+
         if not self.mouse_controller.set_dpi_stage(stage_number):
             logger.error("Failed to change the DPI stage.")
+            return
+
+        self._last_dpi_stage = stage_number
+        if self.mouse_session is not None:
+            self._last_connection_generation = self.mouse_session.connection_generation
 
     def _set_idle_time(self, minutes: int) -> None:
         if not self.mouse_controller.set_idle_time(minutes):
@@ -447,6 +462,35 @@ class Application(QObject):
             self.notification_manager.reset()
 
     def _handle_connected(self, state: MouseState) -> None:
+        generation = (
+            self.mouse_session.connection_generation
+            if self.mouse_session is not None
+            else None
+        )
+
+        if (
+            self.mouse_controller is not None
+            and self._last_connection_generation == generation
+            and self._last_dpi_stage is not None
+            and state.active_stage != self._last_dpi_stage
+            and state.active_stage is not None
+            and 1 <= state.active_stage <= len(state.stages)
+        ):
+            stage_dpi = state.stages[state.active_stage - 1].dpi
+            if self.mouse_controller.set_dpi(stage_dpi, stage_dpi):
+                logger.info(
+                    "Persisted DPI for hardware-selected stage %s.",
+                    state.active_stage,
+                )
+            else:
+                logger.error(
+                    "Failed to persist DPI for hardware-selected stage %s.",
+                    state.active_stage,
+                )
+
+        self._last_dpi_stage = state.active_stage
+        self._last_connection_generation = generation
+
         if self.menu_widgets is not None:
             update_dpi_stage_menu(
                 self.menu_widgets.stage_menu,
@@ -492,6 +536,11 @@ class Application(QObject):
             logger.error("Razer Viper Ultimate not detected.")
             return 1
 
+        self.mouse_session = MousePollingSession()
+        self.mouse_session.seed_state(state)
+        self._last_dpi_stage = state.active_stage
+        self._last_connection_generation = self.mouse_session.connection_generation
+
         self.indicator = create_indicator(self.icon_dir)
 
         self.log_manager = LogManager(
@@ -526,7 +575,7 @@ class Application(QObject):
             self._open_set_dpi,
         )
 
-        self.mouse_controller = MouseController()
+        self.mouse_controller = MouseController(self.mouse_session)
 
         stage_menu = self.menu_widgets.stage_menu
         stage_items = self.menu_widgets.stage_items
@@ -567,6 +616,7 @@ class Application(QObject):
         self.poller = MousePoller(
             on_connected=self._handle_connected,
             on_disconnected=self._handle_disconnection,
+            session=self.mouse_session,
         )
 
         self.poller.start()

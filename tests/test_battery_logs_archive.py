@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from battery_logs.archive_battery_log import BatteryLogArchiver
 
-FIXED_DATETIME = datetime(2026, 9, 19, 20, 15, 30)  # noqa: DTZ001
+FIXED_DATETIME = datetime(2026, 9, 19, 20, 15, 30)
 
 
 def _write_log(log_dir: Path, filename: str, content: str) -> Path:

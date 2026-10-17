@@ -3,7 +3,12 @@ from types import SimpleNamespace
 import pytest
 
 import razer.mouse_state
-from razer.mouse_state import ChargingSource, DPIStage, get_mouse_state
+from razer.mouse_state import (
+    ChargingSource,
+    DPIStage,
+    MousePollingSession,
+    get_mouse_state,
+)
 
 
 def _create_mouse(
@@ -233,3 +238,168 @@ def test_get_mouse_state_builds_wired_state(monkeypatch) -> None:
     state = get_mouse_state()
 
     assert state.charging_source is ChargingSource.WIRED
+
+
+def test_polling_session_reuses_manager_and_caches_stable_values(monkeypatch) -> None:
+    calls = {
+        "manager": 0,
+        "battery": 0,
+        "charging": 0,
+        "dpi": 0,
+        "stages": 0,
+        "idle": 0,
+        "threshold": 0,
+    }
+
+    class PollingMouse:
+        name = "Razer Viper Ultimate"
+
+        def __init__(self) -> None:
+            self.active_stage = 1
+            self._dbus_interfaces = {
+                "power": SimpleNamespace(
+                    getBattery=lambda: (
+                        calls.__setitem__(
+                            "battery",
+                            calls["battery"] + 1,
+                        )
+                        or 60.0
+                    ),
+                ),
+            }
+
+        @property
+        def is_charging(self):
+            calls["charging"] += 1
+            return False
+
+        @property
+        def dpi(self):
+            calls["dpi"] += 1
+            return (800, 500)
+
+        @property
+        def dpi_stages(self):
+            calls["stages"] += 1
+            return (self.active_stage, [(400, 400), (800, 800)])
+
+        def get_idle_time(self):
+            calls["idle"] += 1
+            return 300
+
+        def get_low_battery_threshold(self):
+            calls["threshold"] += 1
+            return 15
+
+    mouse = PollingMouse()
+
+    def create_manager():
+        calls["manager"] += 1
+        return object()
+
+    monkeypatch.setattr(
+        razer.mouse_state,
+        "create_device_manager",
+        create_manager,
+    )
+    monkeypatch.setattr(
+        razer.mouse_state,
+        "find_viper_ultimate_device",
+        lambda _: mouse,
+    )
+    monkeypatch.setattr(
+        razer.mouse_state,
+        "get_charging_source",
+        lambda _: "wireless",
+    )
+
+    session = MousePollingSession()
+
+    first_state = session.get_state()
+    mouse.active_stage = 2
+    second_state = session.get_state()
+
+    assert first_state.connected
+    assert first_state.dpi == (800, 500)
+    assert second_state.connected
+    assert second_state.dpi == (800, 800)
+    assert session.connection_generation == 1
+    assert calls == {
+        "manager": 1,
+        "battery": 2,
+        "charging": 2,
+        "dpi": 1,
+        "stages": 2,
+        "idle": 1,
+        "threshold": 1,
+    }
+
+
+def test_polling_session_refreshes_dpi_after_reconnection(monkeypatch) -> None:
+    mouse = _create_mouse(
+        dpi=(1600, 1600),
+        dpi_stages=(2, [(400, 400), (800, 800), (1600, 1600)]),
+    )
+
+    monkeypatch.setattr(
+        razer.mouse_state,
+        "create_device_manager",
+        lambda: object(),
+    )
+    monkeypatch.setattr(
+        razer.mouse_state,
+        "find_viper_ultimate_device",
+        lambda _: mouse,
+    )
+    monkeypatch.setattr(
+        razer.mouse_state,
+        "get_charging_source",
+        lambda _: "wireless",
+    )
+
+    session = MousePollingSession()
+    first_state = session.get_state()
+    assert first_state.dpi == (1600, 1600)
+    assert first_state.active_stage == 2
+
+    # Simulate the device returning a different current DPI after reconnecting
+    # while preserving the same active stage and configured stages.
+    session._invalidate()
+    mouse.dpi = (800, 200)
+
+    reconnected_state = session.get_state()
+
+    assert reconnected_state.connected
+    assert reconnected_state.dpi == (800, 200)
+    assert reconnected_state.active_stage == 2
+    assert session.connection_generation == 2
+
+
+def test_polling_session_updates_cached_dpi_and_settings() -> None:
+    session = MousePollingSession()
+    initial_state = razer.mouse_state.MouseState(
+        connected=True,
+        device_name="Razer Viper Ultimate",
+        battery=60.0,
+        charging=False,
+        charging_source=ChargingSource.WIRELESS,
+        dpi=(800, 500),
+        active_stage=1,
+        stages=[DPIStage(400), DPIStage(800)],
+        idle_minutes=5,
+        low_battery_threshold=15,
+    )
+    session.seed_state(initial_state)
+
+    session.update_dpi((800, 500))
+    session.update_dpi_stages([DPIStage(400), DPIStage(800)], 1)
+    session.update_dpi((800, 500))
+    session.update_idle_minutes(10)
+    session.update_low_battery_threshold(20)
+
+    state = session.get_cached_state()
+
+    assert state.dpi == (800, 500)
+    assert state.active_stage == 1
+    assert state.idle_minutes == 10
+    assert state.low_battery_threshold == 20

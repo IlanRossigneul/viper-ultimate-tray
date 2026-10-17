@@ -1,6 +1,6 @@
 import logging
 import threading
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -300,6 +300,19 @@ def test_set_active_stage_logs_error_when_controller_fails() -> None:
     logger_error.assert_called_once_with("Failed to change the DPI stage.")
 
 
+def test_set_active_stage_tracks_stage_after_success() -> None:
+    application = Application()
+    application.mouse_controller = MagicMock()
+    application.mouse_session = MagicMock()
+    application.mouse_session.connection_generation = 3
+
+    application._set_active_stage(2)
+
+    application.mouse_controller.set_dpi_stage.assert_called_once_with(2)
+    assert application._last_dpi_stage == 2
+    assert application._last_connection_generation == 3
+
+
 def test_set_idle_time_logs_error_when_controller_fails() -> None:
     application = Application()
     application.mouse_controller = MagicMock()
@@ -356,6 +369,44 @@ def test_handle_connected_updates_status_and_notifications() -> None:
 
     application.status_view.show_connected.assert_called_once_with(state)
     application.notification_manager.update.assert_called_once_with(state)
+
+
+def test_handle_connected_persists_dpi_when_hardware_stage_changes() -> None:
+    application = Application()
+    application.status_view = MagicMock()
+    application.mouse_session = MagicMock()
+    application.mouse_session.connection_generation = 4
+    application.mouse_controller = MagicMock()
+    application._last_connection_generation = 4
+    application._last_dpi_stage = 1
+
+    state = _connected_state()
+    state.active_stage = 2
+
+    application._handle_connected(state)
+
+    application.mouse_controller.set_dpi.assert_called_once_with(1600, 1600)
+    assert application._last_dpi_stage == 2
+    assert application._last_connection_generation == 4
+
+
+def test_handle_connected_does_not_persist_dpi_after_reconnection() -> None:
+    application = Application()
+    application.status_view = MagicMock()
+    application.mouse_session = MagicMock()
+    application.mouse_session.connection_generation = 5
+    application.mouse_controller = MagicMock()
+    application._last_connection_generation = 4
+    application._last_dpi_stage = 1
+
+    state = _connected_state()
+    state.active_stage = 2
+
+    application._handle_connected(state)
+
+    application.mouse_controller.set_dpi.assert_not_called()
+    assert application._last_dpi_stage == 2
+    assert application._last_connection_generation == 5
 
 
 def test_handle_connected_works_without_notification_manager() -> None:
@@ -532,7 +583,7 @@ def test_run_orchestrates_application_startup() -> None:
         application._open_set_dpi,
     )
 
-    mouse_controller.assert_called_once_with()
+    mouse_controller.assert_called_once_with(application.mouse_session)
     create_status_view.assert_called_once_with(widgets, charge_models)
 
     create_dpi_menu.assert_called_once_with(
@@ -557,6 +608,7 @@ def test_run_orchestrates_application_startup() -> None:
     mouse_poller.assert_called_once_with(
         on_connected=application._handle_connected,
         on_disconnected=application._handle_disconnection,
+        session=application.mouse_session,
     )
 
     mouse_poller.return_value.start.assert_called_once_with()
@@ -826,7 +878,7 @@ def test_handle_battery_logger_started_updates_state() -> None:
         28,
         12,
         0,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     with (
@@ -896,7 +948,7 @@ def test_handle_battery_logger_start_failed_resets_state() -> None:
         28,
         12,
         0,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
     application.battery_logger_last_duration = timedelta(minutes=12)
 
@@ -941,7 +993,7 @@ def test_handle_battery_logger_finished_records_last_duration() -> None:
         28,
         12,
         0,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
     stop_time = datetime(
         2026,
@@ -950,7 +1002,7 @@ def test_handle_battery_logger_finished_records_last_duration() -> None:
         12,
         17,
         32,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     application.battery_logger_started_at = start_time
@@ -1015,7 +1067,7 @@ def test_update_battery_logger_menu_shows_elapsed_time() -> None:
         28,
         12,
         0,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
     current_time = datetime(
         2026,
@@ -1024,7 +1076,7 @@ def test_update_battery_logger_menu_shows_elapsed_time() -> None:
         12,
         17,
         32,
-        tzinfo=timezone.utc,
+        tzinfo=UTC,
     )
 
     application.battery_logger_started_at = start_time
