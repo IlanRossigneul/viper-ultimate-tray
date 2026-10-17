@@ -14,14 +14,24 @@ def update_dpi_stage_menu(
     icon_dir: Path,
     callback: Callable[[int], None],
 ) -> None:
-    """Update the DPI stage menu to match the current stages."""
+    """Update the DPI stage menu only when the stages have changed."""
+    stage_values = [stage.dpi for stage in stages]
+
+    if stage_items and [item.data() for item in stage_items] == stage_values:
+        return
+
+    stage_group = stage_menu.findChild(QActionGroup, "dpiStageGroup")
+    if stage_group is None:
+        stage_group = QActionGroup(stage_menu)
+        stage_group.setObjectName("dpiStageGroup")
+        stage_group.setExclusive(True)
+
     for item in stage_items:
         stage_menu.removeAction(item)
+        stage_group.removeAction(item)
+        item.deleteLater()
 
     stage_items.clear()
-
-    stage_group = QActionGroup(stage_menu)
-    stage_group.setExclusive(True)
 
     for index, stage in enumerate(stages, start=1):
         item = QAction(f"{stage.dpi:>5}", stage_menu)
@@ -32,6 +42,7 @@ def update_dpi_stage_menu(
             item.setIcon(QIcon(str(icon_dir / "fast.svg")))
 
         item.setCheckable(True)
+        item.setData(stage.dpi)
 
         item.triggered.connect(
             lambda _checked, stage=index: callback(stage),

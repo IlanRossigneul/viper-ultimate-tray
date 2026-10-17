@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -51,10 +52,13 @@ class StatusView:
         self.idle_items = idle_items
 
         self.low_battery_items = low_battery_items
+        self._last_tray_icon_path: Path | None = None
+        self._last_battery_icon_path: Path | None = None
 
     @staticmethod
+    @lru_cache(maxsize=256)
     def load_svg_pixmap(path: Path) -> QPixmap:
-        """Render an SVG file into a pixmap."""
+        """Render an SVG file into a cached pixmap."""
         renderer = QSvgRenderer(str(path))
 
         if not renderer.isValid():
@@ -79,8 +83,15 @@ class StatusView:
     def format_dpi_stage(stage: DPIStage) -> str:
         return str(stage.dpi)
 
+    def _set_tray_icon(self, path: Path) -> None:
+        if path == self._last_tray_icon_path:
+            return
+
+        self.indicator.setIconByPixmap(self.load_svg_pixmap(path))
+        self._last_tray_icon_path = path
+
     def show_disconnected(self) -> None:
-        self.indicator.setIconByPixmap(QPixmap(str(self.menu_icon_dir / "mouse.svg")))
+        self._set_tray_icon(self.menu_icon_dir / "mouse.svg")
 
         self.name_item.setText("Razer Viper Ultimate déconnectée")
 
@@ -120,9 +131,7 @@ class StatusView:
         is_charging = state.charging
 
         if battery is None:
-            self.indicator.setIconByPixmap(
-                QPixmap(str(self.menu_icon_dir / "mouse.svg"))
-            )
+            self._set_tray_icon(self.menu_icon_dir / "mouse.svg")
 
             self.name_item.setText(state.device_name)
 
@@ -131,11 +140,8 @@ class StatusView:
 
             return
 
-        self.indicator.setIconByPixmap(
-            self.load_svg_pixmap(
-                self.tray_icon_dir / get_tray_icon(battery, is_charging)
-            )
-        )
+        tray_icon_path = self.tray_icon_dir / get_tray_icon(battery, is_charging)
+        self._set_tray_icon(tray_icon_path)
 
         for item in [
             self.battery_item,
@@ -160,11 +166,12 @@ class StatusView:
 
         self.indicator.setTitle(f"{state.device_name} — {int(battery)} %")
 
-        self.battery_item.setIcon(
-            QIcon(
-                str(self.menu_battery_icon_dir / get_battery_icon(battery, is_charging))
-            )
+        battery_icon_path = self.menu_battery_icon_dir / get_battery_icon(
+            battery, is_charging
         )
+        if battery_icon_path != self._last_battery_icon_path:
+            self.battery_item.setIcon(QIcon(str(battery_icon_path)))
+            self._last_battery_icon_path = battery_icon_path
 
         charge_estimation = get_charge_estimation(
             battery,

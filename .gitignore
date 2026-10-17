@@ -37,6 +37,9 @@ src/battery_logs/battery_*_charge_log_cleaned*.csv
 # Archive battery logs
 src/battery_logs/archive/
 
+# Local runtime files
+viper-ultimate-tray.lock
+
 # Local logs
 *.log
 

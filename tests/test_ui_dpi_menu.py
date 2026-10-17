@@ -1,3 +1,5 @@
+from PySide6.QtCore import QCoreApplication, QEvent
+from PySide6.QtGui import QActionGroup
 from PySide6.QtWidgets import QApplication, QMenu
 
 from config.paths import MENU_ICON_DIR
@@ -165,3 +167,59 @@ def test_update_dpi_stage_menu_rebuilds_items_to_match_stages() -> None:
         " 1600",
         " 2400",
     ]
+
+
+def test_update_dpi_stage_menu_does_not_rebuild_unchanged_stages() -> None:
+    app = _get_app()
+    menu = QMenu()
+    stages = [DPIStage(400), DPIStage(800), DPIStage(1600)]
+    items = create_dpi_stage_menu(menu, stages, MENU_ICON_DIR, lambda _: None)
+    original_items = list(items)
+    original_groups = menu.findChildren(QActionGroup)
+
+    for _ in range(250):
+        update_dpi_stage_menu(
+            menu,
+            items,
+            stages,
+            MENU_ICON_DIR,
+            lambda _: None,
+        )
+
+    app.processEvents()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+    assert items == original_items
+    assert menu.actions() == original_items
+    assert menu.findChildren(QActionGroup) == original_groups
+    assert len(menu.findChildren(QActionGroup)) == 1
+
+
+def test_update_dpi_stage_menu_releases_replaced_actions_and_groups() -> None:
+    app = _get_app()
+    menu = QMenu()
+    items = create_dpi_stage_menu(
+        menu,
+        [DPIStage(400), DPIStage(800), DPIStage(1600)],
+        MENU_ICON_DIR,
+        lambda _: None,
+    )
+    original_action_count = len(menu.findChildren(type(items[0])))
+
+    for count in range(250):
+        update_dpi_stage_menu(
+            menu,
+            items,
+            [DPIStage(400), DPIStage(800 + count * 100), DPIStage(1600)],
+            MENU_ICON_DIR,
+            lambda _: None,
+        )
+        app.processEvents()
+
+    app.processEvents()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+    assert len(items) == 3
+    assert menu.actions() == items
+    assert len(menu.findChildren(QActionGroup)) == 1
+    assert len(menu.findChildren(type(items[0]))) == original_action_count
