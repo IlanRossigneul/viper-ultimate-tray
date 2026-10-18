@@ -1,3 +1,5 @@
+import logging
+import time
 from dataclasses import dataclass, replace
 from enum import Enum
 from threading import RLock
@@ -10,6 +12,8 @@ from razer.device import (
     find_viper_ultimate_device,
     get_charging_source,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class ChargingSource(Enum):
@@ -74,6 +78,7 @@ class MousePollingSession:
         self._low_battery_threshold: int | None = None
         self._last_state = _get_disconnected_state()
         self._connection_generation = 0
+        self._hibernating = False
 
     @property
     def connection_generation(self) -> int:
@@ -92,6 +97,9 @@ class MousePollingSession:
             self._idle_minutes = state.idle_minutes
             self._low_battery_threshold = state.low_battery_threshold
             self._last_state = replace(state, stages=list(state.stages))
+            self._hibernating = (
+                state.connected and state.battery is None and state.charging is False
+            )
 
     def get_cached_state(self) -> MouseState:
         """Return the latest state without making D-Bus calls."""
@@ -106,6 +114,7 @@ class MousePollingSession:
         self._idle_minutes = None
         self._low_battery_threshold = None
         self._last_state = _get_disconnected_state()
+        self._hibernating = False
 
     def _connect(self) -> bool:
         try:
@@ -139,28 +148,65 @@ class MousePollingSession:
         return True
 
     def get_state(self) -> MouseState:
+        started_at = time.perf_counter()
         with self._lock:
             new_connection = self._mouse is None
             if new_connection and not self._connect():
+                logger.debug(
+                    "Mouse polling: mode=disconnected reason=connection_failed "
+                    "total=%.2f ms",
+                    (time.perf_counter() - started_at) * 1000,
+                )
                 return _get_disconnected_state()
 
             mouse = self._mouse
             if mouse is None:
+                logger.debug(
+                    "Mouse polling: mode=disconnected reason=no_mouse total=%.2f ms",
+                    (time.perf_counter() - started_at) * 1000,
+                )
                 return _get_disconnected_state()
 
             try:
+                battery_started_at = time.perf_counter()
                 battery = mouse._dbus_interfaces["power"].getBattery()
+                battery_duration = time.perf_counter() - battery_started_at
+
+                if self._hibernating and battery in (0.0, -1.0):
+                    state = replace(
+                        self._last_state,
+                        battery=None,
+                        charging=False,
+                        stages=list(self._last_state.stages),
+                    )
+                    self._last_state = state
+                    logger.debug(
+                        "Mouse polling: mode=hibernating battery=%.2f ms total=%.2f ms",
+                        battery_duration * 1000,
+                        (time.perf_counter() - started_at) * 1000,
+                    )
+                    return state
+
+                charging_started_at = time.perf_counter()
                 charging = mouse.is_charging
+                charging_duration = time.perf_counter() - charging_started_at
 
                 if battery == -1.0:
                     battery = None
                 elif battery == 0.0:
                     battery = 0 if charging else None
 
+                stages_started_at = time.perf_counter()
                 active_stage, raw_stages = mouse.dpi_stages
+                stages_duration = time.perf_counter() - stages_started_at
                 stages = [DPIStage(dpi=dpi_x) for dpi_x, _ in raw_stages]
-            except Exception:  # noqa: BLE001
+            except Exception:
+                logger.exception("Failed to read mouse state from OpenRazer.")
                 self._invalidate()
+                logger.debug(
+                    "Mouse polling: mode=disconnected reason=read_failed total=%.2f ms",
+                    (time.perf_counter() - started_at) * 1000,
+                )
                 return _get_disconnected_state()
 
             if (
@@ -188,6 +234,15 @@ class MousePollingSession:
                 low_battery_threshold=self._low_battery_threshold,
             )
             self._last_state = state
+            self._hibernating = battery is None and charging is False
+            logger.debug(
+                "Mouse polling: mode=active battery=%.2f ms charging=%.2f ms "
+                "dpi_stages=%.2f ms total=%.2f ms",
+                battery_duration * 1000,
+                charging_duration * 1000,
+                stages_duration * 1000,
+                (time.perf_counter() - started_at) * 1000,
+            )
             return state
 
     def update_dpi(self, dpi: tuple[int, int]) -> None:

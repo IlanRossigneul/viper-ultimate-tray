@@ -110,12 +110,25 @@ class BatteryLogger:
         self.running = False
 
     def _find_mouse(self) -> RazerMouse | None:
+        started_at = time.perf_counter()
+
         try:
             device_manager = create_device_manager()
-            return find_viper_ultimate_device(device_manager)
+            mouse = find_viper_ultimate_device(device_manager)
         except Exception:
             logger.exception("Failed to detect mouse.")
+            logger.debug(
+                "Battery logger mouse detection failed after %.2f ms.",
+                (time.perf_counter() - started_at) * 1000,
+            )
             return None
+
+        logger.debug(
+            "Battery logger mouse detection: %.2f ms (found=%s).",
+            (time.perf_counter() - started_at) * 1000,
+            mouse is not None,
+        )
+        return mouse
 
     def run(self) -> None:
         mouse = self._find_mouse()
@@ -152,29 +165,57 @@ class BatteryLogger:
                 writer = csv.writer(file)
 
                 while self.running:
+                    cycle_started_at = time.perf_counter()
                     current_mouse = self._find_mouse()
 
                     if current_mouse is None:
+                        logger.debug(
+                            "Battery logger poll: mode=mouse_not_found total=%.2f ms",
+                            (time.perf_counter() - cycle_started_at) * 1000,
+                        )
                         time.sleep(self.interval_seconds)
                         continue
 
                     if current_mouse.name != current_mode:
+                        logger.debug(
+                            "Battery logger poll: mode_changed=%s total=%.2f ms",
+                            current_mouse.name,
+                            (time.perf_counter() - cycle_started_at) * 1000,
+                        )
                         mouse = current_mouse
                         break
 
                     mouse = current_mouse
 
                     try:
+                        battery_started_at = time.perf_counter()
                         battery = mouse._dbus_interfaces["power"].getBattery()
+                        battery_duration = time.perf_counter() - battery_started_at
+
+                        charging_started_at = time.perf_counter()
                         is_charging = mouse.is_charging
+                        charging_duration = time.perf_counter() - charging_started_at
+
                         timestamp = (
                             datetime.now().astimezone().isoformat(timespec="seconds")
                         )
                         entry = [timestamp, battery, is_charging]
                         self._process_entry(writer, entry)
                         file.flush()
+
+                        logger.debug(
+                            "Battery logger poll: mode=active battery=%.2f ms "
+                            "charging=%.2f ms total=%.2f ms",
+                            battery_duration * 1000,
+                            charging_duration * 1000,
+                            (time.perf_counter() - cycle_started_at) * 1000,
+                        )
                     except Exception:
                         logger.exception("Failed to log battery data.")
+                        logger.debug(
+                            "Battery logger poll failed after %.2f ms.",
+                            (time.perf_counter() - cycle_started_at) * 1000,
+                        )
 
                     time.sleep(self.interval_seconds)
 

@@ -335,6 +335,74 @@ def test_polling_session_reuses_manager_and_caches_stable_values(monkeypatch) ->
     }
 
 
+def test_polling_session_skips_full_reads_during_hibernation(monkeypatch) -> None:
+    calls = {"battery": 0, "charging": 0, "stages": 0}
+
+    class PollingMouse:
+        name = "Razer Viper Ultimate"
+
+        def __init__(self) -> None:
+            self.battery = 70.0
+            self._dbus_interfaces = {
+                "power": SimpleNamespace(getBattery=self.get_battery),
+            }
+
+        def get_battery(self) -> float:
+            calls["battery"] += 1
+            return self.battery
+
+        @property
+        def is_charging(self):
+            calls["charging"] += 1
+            return False
+
+        @property
+        def dpi(self):
+            return (800, 800)
+
+        @property
+        def dpi_stages(self):
+            calls["stages"] += 1
+            return (1, [(400, 400), (800, 800)])
+
+        def get_idle_time(self):
+            return 300
+
+        def get_low_battery_threshold(self):
+            return 15
+
+    self_mouse = PollingMouse()
+    monkeypatch.setattr(razer.mouse_state, "create_device_manager", lambda: object())
+    monkeypatch.setattr(
+        razer.mouse_state, "find_viper_ultimate_device", lambda _: self_mouse
+    )
+    monkeypatch.setattr(razer.mouse_state, "get_charging_source", lambda _: "wireless")
+
+    session = MousePollingSession()
+
+    awake_state = session.get_state()
+    assert awake_state.battery == 70.0
+    assert calls == {"battery": 1, "charging": 1, "stages": 1}
+
+    self_mouse.battery = 0.0
+    hibernating_state = session.get_state()
+    assert hibernating_state.connected
+    assert hibernating_state.battery is None
+    assert hibernating_state.charging is False
+    assert calls == {"battery": 2, "charging": 2, "stages": 2}
+
+    hibernating_state = session.get_state()
+    assert hibernating_state.connected
+    assert hibernating_state.dpi == awake_state.dpi
+    assert calls == {"battery": 3, "charging": 2, "stages": 2}
+
+    self_mouse.battery = 70.0
+    awake_again_state = session.get_state()
+    assert awake_again_state.connected
+    assert awake_again_state.battery == 70.0
+    assert calls == {"battery": 4, "charging": 3, "stages": 3}
+
+
 def test_polling_session_refreshes_dpi_after_reconnection(monkeypatch) -> None:
     mouse = _create_mouse(
         dpi=(1600, 1600),

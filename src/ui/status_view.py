@@ -137,6 +137,7 @@ class StatusView:
 
             self.battery_item.setText("Batterie : —")
             self.battery_item.setEnabled(False)
+            self.stage_item.setEnabled(False)
 
             return
 

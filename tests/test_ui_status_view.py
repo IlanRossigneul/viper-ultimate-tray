@@ -151,6 +151,8 @@ def test_show_connected_without_battery_shows_unavailable_battery() -> None:
     assert indicator.icon.isNull() is False
     assert view.name_item.text() == "Razer Viper Ultimate"
     assert view.battery_item.text() == "Batterie : —"
+    assert not view.battery_item.isEnabled()
+    assert not view.stage_item.isEnabled()
 
 
 def test_show_connected_updates_status_from_mouse_state() -> None:
